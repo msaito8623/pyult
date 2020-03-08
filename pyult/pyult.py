@@ -837,4 +837,43 @@ class UltPicture (Ult, UStxt, Prompt):
         out.release()
         return None
 
+    def add_direction (self, img=None, arrow=True, inplace=False, color=(0,0,0)):
+        if img is None:
+            try:
+                img = self.img
+            except AttributeError:
+                print('Error: Image matrix not found')
+                return None
+    
+        height = img.shape[0]
+        width  = img.shape[1]
+        hwdiff = width/height
+        font   = cv2.FONT_HERSHEY_SIMPLEX
+        fscale = width/500
+        thick  = round(width*2/500)
+        thick  = 1 if thick < 1 else thick
+        pos_y  = round(height*90/100)
+        pos_x  = round(width*5/100)
+        img    = cv2.putText(img=img, text='Back', org=(pos_x, pos_y),
+                fontFace=font, fontScale=fscale, color=color, thickness=thick,
+                lineType=cv2.CV_8UC4, bottomLeftOrigin=False)
+        pos_y  = round(height*90/100)
+        pos_x  = round(width*77/100)
+        img    = cv2.putText(img=img, text='Front', org=(pos_x, pos_y),
+                fontFace=font, fontScale=fscale, color=color, thickness=thick,
+                lineType=cv2.CV_8UC4, bottomLeftOrigin=False)
+        
+        if arrow:
+            pos_y_start = round(height*88/100)
+            pos_x_start = round(width*23/100)
+            pos_y_end   = round(height*88/100)
+            pos_x_end   = round(width*73/100)
+            img         = cv2.arrowedLine(img=img,
+                    pt1=(pos_x_start, pos_y_start), pt2=(pos_x_end, pos_y_end),
+                    color=color, thickness=thick, line_type=cv2.CV_8UC4)
+        if inplace:
+            self.img = img
+            return None
+        else:
+            return img
 
