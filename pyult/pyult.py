@@ -5,6 +5,9 @@ import pandas as pd
 import cv2
 from scipy import ndimage
 import math
+import os
+import subprocess
+import soundfile as sf
 
 class Files:
     def __init__ (self):
@@ -105,6 +108,21 @@ class Files:
             self.suffixes= path
             path = None
         return path
+    
+    def exist ( self, path=None, verbose=False ):
+        if path is None:
+            path = self.paths
+        isstr = isinstance(path, str)
+        if isstr:
+            path = [path]
+        path = [ pathlib.Path(i) for i in path ]
+        errp = [ i for i in path if not (i.is_file() or i.is_dir()) ]
+        res = not (len(errp)>0)
+        if (not res) and verbose:
+            print('The paths below do not exist.')
+            for i in errp:
+                print(i)
+        return res
 
 class UltFiles (Files):
     def __init__(self, directory=''):
@@ -278,6 +296,10 @@ class UltPicture (Ult, UStxt, Prompt):
     def reset_attr (self):
         self.img = None
         self.df = None
+        Files.reset_attr(self)
+        Prompt.reset_attr(self)
+        UStxt.reset_attr(self)
+        Ult.reset_attr(self)
         return None
 
     def read (self, path, inplace=False):
@@ -298,7 +320,7 @@ class UltPicture (Ult, UStxt, Prompt):
             res_dct = None
         return res_dct
 
-    def add_number_of_frames (self):
+    def __add_number_of_frames (self):
         try:
             self.number_of_frames = self.vector.size // int(self.framesize)
         except AttributeError:
@@ -307,162 +329,120 @@ class UltPicture (Ult, UStxt, Prompt):
     def vec_to_pics (self, vector=None, inplace=False):
         if vector is None:
             vector = self.vector
-        self.add_number_of_frames()
+        self.__add_number_of_frames()
         img = vector.reshape(self.number_of_frames, self.numvectors, self.pixpervector)
         img  = np.rot90(img, axes=(1,2))
-        if inplace:
-            self.img = img
-            img = None
+        img = self.__inplace(img=img, inplace=inplace)
         return img
 
     def save_img (self, path, img=None):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
+        img = self.__getimg(img=img)
         cv2.imwrite(path, img)
         return None
 
     def read_img (self, path, grayscale=True, inplace=False):
         img = cv2.imread(path, 0) if grayscale else cv2.imread(path)
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
 
     def flip (self, flip_direction=None, img=None, inplace=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        num_dim = len(img.shape)
-        mod_dim = num_dim - 2
-        if mod_dim<0 or mod_dim>1:
-            raise ValueError('self.flip is implemented only for 2 or 3 dimensions.')
-        ydim = 0 + mod_dim
-        xdim = 1 + mod_dim
-        if flip_direction is None:
-            flip_direction = ( ydim, xdim )
-        else:
-            x_in = 'x' in flip_direction
-            y_in = 'y' in flip_direction
-            if x_in and y_in:
+        def __flip_drct ( img, flip_direction ):
+            num_dim = len(img.shape)
+            mod_dim = num_dim - 2
+            if mod_dim<0 or mod_dim>1:
+                raise ValueError('self.flip is implemented only for 2 or 3 dimensions.')
+            ydim = 0 + mod_dim
+            xdim = 1 + mod_dim
+            if flip_direction is None:
                 flip_direction = ( ydim, xdim )
-            elif x_in and not y_in:
-                flip_direction = xdim
-            elif not x_in and y_in:
-                flip_direction = ydim
             else:
-                raise ValueError('Provide directions of flipping as "x", "y", or "xy".')
-        img = np.flip(img, flip_direction)
+                x_in = 'x' in flip_direction
+                y_in = 'y' in flip_direction
+                if x_in and y_in:
+                    flip_direction = ( ydim, xdim )
+                elif x_in and not y_in:
+                    flip_direction = xdim
+                elif not x_in and y_in:
+                    flip_direction = ydim
+                else:
+                    raise ValueError('Provide directions of flipping as "x", "y", or "xy".')
+            return flip_direction
+        img = self.__format_imgs(img=img)
+        drct = __flip_drct(img=img[0][0], flip_direction=flip_direction)
+        img = [ [ np.flip(j, drct) for j in i ] for i in img ]
+        img = self.__finish_imgs(img=img)
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
+
+    def reduce_resolution (self, img=None, every_x=1, every_y=1, inplace=False):
+        img = self.__format_imgs(img=img)
+        img = [ [ j[::every_y, ::every_x] for j in i ] for i in img ]
+        img = self.__finish_imgs(img=img)
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
+
+    def __finish_imgs (self, img):
+        if len(img)==1:
+            img = img[0][0]
+        else:
+            if len(img[0])==1:
+                img = [ j for i in img for j in i ]
+                shp = [ i.shape for i in img ]
+                if len(set(shp))==1:
+                    img = np.stack(img)
+        return img
+
+    def __inplace (self, img, inplace):
         if inplace:
             self.img = img
             img = None
         return img
 
-    def reduce_resolution (self, img=None, every_x=1, every_y=1, inplace=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        num_dim = len(img.shape)
-        if num_dim==2:
-            img = img[::every_y, ::every_x]
-        elif num_dim==3:
-            img = img[:,::every_y, ::every_x]
-        else:
-            raise ValueError('self.reduce_resolution is implemented only for 2 or 3 dimensions.')
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
-
     def resize (self, new_xy, img=None, inplace=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        num_dim = len(img.shape)
-        if num_dim==2:
-            img = cv2.resize(img, new_xy)
-        elif num_dim==3:
-            img = [ cv2.resize(i, new_xy) for i in img ]
-        else:
-            raise ValueError('self.resize is implemented only for 2 or 3 dimensions.')
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
-
-    def to_square (self, img=None, inplace=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        num_dim = len(img.shape)
-        if not num_dim in [2,3] :
-            raise ValueError('self.to_square is implemented only for 2 or 3 dimensions.')
-        xlen = img.shape[-1]
-        ylen = img.shape[-2]
-        bigger = ylen if ylen >= xlen else xlen
-        newxy= (bigger, bigger)
-        img = self.resize(newxy, img)
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
-
-    def crop (self, crop_points, img=None, x_reverse=False, y_reverse=False, inplace=False, lineonly=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        num_dim = len(img.shape)
-        if num_dim==2:
-            img = self.crop_2d(crop_points, img, x_reverse, y_reverse, False, lineonly)
-        elif num_dim==3:
-            img = self.crop_3d(crop_points, img, x_reverse, y_reverse, False, lineonly)
-        else:
-            raise ValueError('self.crop is implemented only for 2 or 3 dimensions.')
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
-
-    def crop_3d (self, crop_points, img=None, x_reverse=False, y_reverse=False, inplace=False, lineonly=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        img = [ self.crop_2d(crop_points, i, x_reverse, y_reverse, inplace, lineonly) for i in img ]
+        img = self.__format_imgs(img=img)
+        img = [ [ cv2.resize(src=j, dsize=new_xy) for j in i ] for i in img ]
+        img = self.__finish_imgs(img=img)
+        img = self.__inplace(img=img, inplace=inplace)
         return img
 
-    def crop_2d (self, crop_points, img=None, x_reverse=False, y_reverse=False, inplace=False, lineonly=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
+    def to_square (self, img=None, glbl=False, inplace=False):
+        img = self.__format_imgs(img=img)
+
+        def __squsize (img):
+            num_dim = len(img.shape)
+            xlen = img.shape[-1]
+            ylen = img.shape[-2]
+            bigger = ylen if ylen >= xlen else xlen
+            squsize = (bigger, bigger)
+            return squsize
+
+        def __resize_squ (img):
+            squsize = __squsize(img=img)
+            img = cv2.resize(src=img, dsize=squsize)
+            return img
+
+        if glbl:
+            shp = [ j.shape for i in img for j in i ]
+            ymx = max([ i[0] for i in shp ])
+            xmx = max([ i[1] for i in shp ])
+            bigger = ymx if ymx >= xmx else xmx
+            squsize = (bigger, bigger)
+            img = [ [ cv2.resize(src=j, dsize=squsize) for j in i ] for i in img ]
+
+        else:
+            img = [ [ __resize_squ(img=j) for j in i ] for i in img ]
+        img = self.__finish_imgs(img=img)
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
+
+    def crop (self, crop_points, img=None, x_reverse=False, y_reverse=False, inplace=False, lineonly=False):
+        img = self.__format_imgs(img=img)
+        img = [ [ self.__crop2d(crop_points, j, x_reverse, y_reverse, lineonly) for j in i ] for i in img ]
+        img = self.__finish_imgs(img=img)
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
+
+    def __crop2d (self, crop_points, img=None, x_reverse=False, y_reverse=False, lineonly=False):
         ylen, xlen = img.shape
         xmin, xmax, ymin, ymax = crop_points
         xmin = 0 if xmin is None else xmin
@@ -472,110 +452,65 @@ class UltPicture (Ult, UStxt, Prompt):
         if x_reverse:
             xmax_new = xlen - xmin
             xmin_new = xlen - xmax
-            xmax = xmax_new
-            xmin = xmin_new
+            xmax = xmax_new - 1
+            xmin = xmin_new - 1
         if y_reverse:
             ymax_new = ylen - ymin
             ymin_new = ylen - ymax
-            ymax = ymax_new
-            ymin = ymin_new
+            ymax = ymax_new - 1
+            ymin = ymin_new - 1
         if lineonly:
             img = img.astype('uint8')
-            if len(img.shape)==2:
-                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            ymin = ymin-1 if ymin>0 else 0
-            xmin = xmin-1 if xmin>0 else 0
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
             img[ymin,:,:] = (0,0,255) 
             img[ymax,:,:] = (0,0,255) 
             img[:,xmin,:] = (0,0,255) 
             img[:,xmax,:] = (0,0,255) 
         else:
-            img = img[ymin:ymax, xmin:xmax]
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
+            img = img[ymin:(ymax+1), xmin:(xmax+1)]
+        return img
 
         
     def to_df (self, img=None, inplace=False, reverse=None, combine=False, add_time=False, fps=None, norm_frame=False, norm_df=False):
 
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
+        img = self.__format_imgs(img=img)
 
-        isndarray = isinstance(img, np.ndarray)
-        islist = isinstance(img, list)
-
-        if isndarray:
-            num_dim = len(img.shape)
-        elif islist:
-            num_dim=3
+        if len(img[0])>1:
+            cnt = 0
+            for inda,i in enumerate(img):
+                for indb,j in enumerate(i):
+                    img[inda][indb] = self.to_df_2d(img=j, frame_id=cnt, reverse=reverse)
+                    cnt += 1
         else:
-            raise ValueError('Input image(s) should be numpy.ndarray or list')
+            img = [ [ self.to_df_2d(img=j, frame_id=frm, reverse=reverse) for j in i ] for frm,i in enumerate(img) ]
 
-        if num_dim==2:
-            df = self.to_df_2d(img, False, reverse)
-        elif num_dim==3:
-            df = self.to_df_3d(img, False, reverse)
-        else:
-            raise ValueError('self.to_df is implemented only for 2 or 3 dimensions.')
+        dfs = [ j for i in img for j in i ]
 
         if isinstance(norm_frame, bool):
             if norm_frame:
-                df = [ self.normalize(df=i, coln=None) for i in df ]
+                dfs = [ self.normalize(df=i, coln=None) for i in dfs ]
         else:
-            df = [ self.normalize(df=i, coln=norm_frame) for i in df ]
+            dfs = [ self.normalize(df=i, coln=norm_frame) for i in dfs ]
 
         if combine:
-            if num_dim==2:
-                df = [df]
-            df = pd.concat(df, ignore_index=True)
+            dfs = pd.concat(dfs, ignore_index=True)
 
         if add_time:
-            if fps is None:
-                if hasattr(self, 'framespersec'):
-                    fps = self.framespersec
-                else:
-                    raise AttributeError('fps (self.framespersec) not found.')
-            df = self.add_time(df=df, fps=fps)
+            dfs = self.__addtime(df=dfs, fps=fps)
 
         if isinstance(norm_df, bool):
             if norm_df:
-                df = self.normalize(df=df, coln=None)
+                dfs = self.normalize(df=dfs, coln=None)
         else:
-            df = self.normalize(df=df, coln=norm_df)
+            dfs = self.normalize(df=dfs, coln=norm_df)
 
         if inplace:
-            self.df = df
+            self.df = dfs
             return None
         else:
-            return df
+            return dfs
 
-    def to_df_3d (self, img=None, inplace=False, reverse=None):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        def temp ( img, reverse, ind ):
-            c_df = self.to_df_2d(img, False, reverse)
-            c_df['frame'] = ind
-            return c_df
-        img = [ temp(j, reverse, i) for i,j in enumerate(img) ]
-        return img
-
-    def to_df_2d (self, img=None, inplace=False, reverse=None):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
+    def to_df_2d (self, img=None, frame_id=None, reverse=None):
         if not reverse is None:
             if 'x' in reverse:
                 img = img[:, ::-1]
@@ -587,27 +522,18 @@ class UltPicture (Ult, UStxt, Prompt):
         xxx = np.array(list(range(xlen))*ylen)
         yyy = np.repeat(np.arange(ylen), xlen)
         df = pd.DataFrame({'brightness':ult, 'x':xxx, 'y':yyy})
-        if inplace:
-            self.df = df
-            return None
-        else:
-            return df
+        if not frame_id is None:
+            df['frame'] = frame_id
+        return df
 
-    def add_time (self, df=None, fps=None, inplace=False):
-        if df is None:
-            if hasattr(self, 'df'):
-                df = self.df
-            else:
-                raise AttributeError('Dataframe not found.')
+    def __addtime (self, df=None, fps=None):
+        df = self.__getdf(df=df)
         if fps is None:
             if hasattr(self, 'framespersec'):
                 fps = self.framespersec
             else:
                 raise AttributeError('fps (self.framespersec) not found.')
         df['time'] = df['frame'] * (1/fps)
-        if inplace:
-            self.df = df
-            df = None
         return df
 
     def normalize_vec (self, vec):
@@ -620,11 +546,7 @@ class UltPicture (Ult, UStxt, Prompt):
         return res
 
     def normalize (self, df=None, coln=None):
-        if df is None:
-            if hasattr(self, 'df'):
-                df = self.df
-            else:
-                raise AttributeError('Dataframe not found.')
+        df = self.__getdf(df=df)
         if coln is None:
             df = df.apply(self.normalize_vec)
         else:
@@ -632,23 +554,12 @@ class UltPicture (Ult, UStxt, Prompt):
         return df
 
     def save_dataframe (self, outpath, df=None):
-        if df is None:
-            try:
-                df = self.df
-            except AttributeError:
-                print('Error: Dataframe not found')
-                return None
+        df = self.__getdf(df=df)
         df.to_csv(outpath, sep='\t', header=True, index=False)
         return None
 
     def fanshape (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-
+        img = self.__getimg(img=img)
         dimnum = len(img.shape)
         if dimnum==2:
             img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose)
@@ -662,11 +573,7 @@ class UltPicture (Ult, UStxt, Prompt):
         else:
             raise ValueError('self.fanshape is implemented only for a single or list of 2D grayscale images or a single RGB image.')
 
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
+        img = self.__inplace(img=img, inplace=inplace)
         return img
 
     def fanshape_2d (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False):
@@ -713,15 +620,6 @@ class UltPicture (Ult, UStxt, Prompt):
                 img = img[:,unique_column!=1,:]
             return img
 
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-
-        img = np.rot90(img, 3)
-
         nec_attrs = [ 'angle', 'zerooffset', 'pixpervector', 'numvectors' ]
         param_ok = all([ hasattr(self, i) for i in nec_attrs ])
 
@@ -749,6 +647,8 @@ class UltPicture (Ult, UStxt, Prompt):
             print('pixels_per_mm: '  + str(pixels_per_mm)    + ' (Modified by the argument "magnify")')
             print('num_of_vectors: ' + str(number_of_vectors))
 
+        img = self.__getimg(img=img)
+        img = np.rot90(img, 3)
         dimnum = len(img.shape)
         if dimnum==2:
             grayscale = True
@@ -776,11 +676,8 @@ class UltPicture (Ult, UStxt, Prompt):
                     'grayscale': grayscale})
         img = trim_picture(img)
         img = np.rot90(img, 1)
-        if inplace:
-            self.img = img
-            return None
-        else:
-            return img
+        img = self.__inplace(img=img, inplace=inplace)
+        return img
 
     def average_img (self, imgs):
         def same_shape (imglist):
@@ -806,12 +703,7 @@ class UltPicture (Ult, UStxt, Prompt):
         return mean_img
 
     def to_video ( self, outpath='./video.avi', imgs=None, fps=None ):
-        if imgs is None:
-            try:
-                imgs = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
+        img = self.__getimg(img=img)
         if fps is None:
             fps = self.framespersec if hasattr(self, 'framespersec') else 10
         else:
@@ -837,14 +729,65 @@ class UltPicture (Ult, UStxt, Prompt):
         out.release()
         return None
 
-    def add_direction (self, img=None, arrow=True, inplace=False, color=(0,0,0)):
+    def __imgtype (self, img=None):
+        img = self.__getimg(img=img)
+        islist = isinstance(img, list)
+        isnump = isinstance(img, np.ndarray)
+        if islist:
+            if not isinstance(img[0], np.ndarray):
+                raise ValueError("Elements in a list of images should be numpy.ndarray.")
+            dims = len(img[0].shape)
+            if dims==2:
+                imgtype = 'l2'
+            elif dims==3:
+                imgtype = 'l3'
+            else:
+                raise ValueError("Provide each image in a list in the 2 or 3 dimensions.")
+        elif isnump:
+            dims = len(img.shape)
+            if dims==2:
+                imgtype = 'n2'
+            elif dims==3:
+                imgtype = 'n3'
+            else:
+                raise ValueError("Images should be 2 or 3 dimensions.")
+        else:
+            raise ValueError("Provide image(s) as list or numpy.array.")
+        return imgtype
+
+    def __getimg (self, img=None):
         if img is None:
             try:
                 img = self.img
             except AttributeError:
                 print('Error: Image matrix not found')
                 return None
-    
+        return img
+
+    def __format_imgs (self, img=None):
+        img = self.__getimg(img=img)
+        typ = self.__imgtype(img=img)
+        if typ=='n2':
+            img = [[img]]
+        elif typ=='n3' or typ=='l2':
+            img = [ [i] for i in img ]
+        elif typ=='l3':
+            img = [ [ j for j in i ] for i in img ]
+        else:
+            raise ValueError('Image type is not recognizable. Check the structure of the input image(s).')
+        return img
+
+    def __getdf (self, df=None):
+        if df is None:
+            try:
+                df = self.df
+            except AttributeError:
+                print('Error: Dataframe not found')
+                return None
+        return df
+
+    def add_direction (self, img=None, arrow=True, inplace=False, color=(0,0,0)):
+        img = self.__getimg(img=img)
         height = img.shape[0]
         width  = img.shape[1]
         hwdiff = width/height
@@ -876,4 +819,134 @@ class UltPicture (Ult, UStxt, Prompt):
             return None
         else:
             return img
+
+
+class Alignment (Files):
+    def run_aligner ( self, wavpath, aligner_home_path, alang='deu'):
+        os.environ['LANG'] = 'C'
+        os.environ['ALIGNERHOME'] = aligner_home_path
+        os.environ['ALANG'] = alang
+        os.environ['PATH'] = '{}/bin/{}:{}'.format(os.environ['ALIGNERHOME'], os.environ['ALANG'], os.environ['PATH'])
+        cmds = ['Alignphones', 'Alignwords']
+        for i in cmds:
+            cmd = [i, wavpath]
+            subprocess.call(cmd)
+        return None
+    
+    def read_align_file ( self, path, inplace=False ):
+        sfx = self.suffix(path)
+        isp = sfx in ['.phonemic', '.phones', '.phoneswithQ']
+        isw = sfx in ['.words']
+        colns = ['end', 'segment'] if isp else ['end','word']
+        dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
+        if inplace:
+            atnm = 'segment' if isp else 'word'
+            setattr(self, atnm, dat)
+            dat = None
+        return dat
+
+    def format_align_files ( self ):
+        tgts = [ 'segment', 'word' ]
+        for i in tgts:
+            try:
+                df = self.__dict__[i]
+            except KeyError:
+                pass
+            df['start'] = df['end'].shift(fill_value=0)
+            self.__dict__[i] = df
+        return None
+
+    def comb_segm_word ( self, df_segment=None, df_word=None ):
+        if df_segment is None:
+            df_segment = self.segment
+        if df_word is None:
+            df_word = self.word
+        def word_now (value, wrds):
+            res = [ k for i,j,k in zip(wrds.start, wrds.end, wrds.word) if (value>i) and (value<=j) ]
+            if len(res)!=1:
+                raise ValueError('The provided value corresponds to more than one word.')
+            return res[0]
+        df_segment['word'] = [ word_now(i, df_word) for i in df_segment['end'] ]
+        setattr(self, 'align_df', df_segment)
+        return None
+
+    def __wav_dur ( self, wavpath, inplace=False ):
+        sound, rate = sf.read(wavpath)
+        wavdur = len(sound)/rate
+        if inplace:
+            self.wavdur = wavdur
+            wavdur = None
+        return wavdur
+
+    def to_textgrid ( self, wavpath, segment=None, word=None ):
+        if segment is None:
+            if hasattr(self, 'segment'):
+                segment = self.segment
+            else:
+                raise ValueError('"segment" is None and the instance does not have it either.')
+        if word is None:
+            if hasattr(self, 'word'):
+                word = self.word
+            else:
+                raise ValueError('"word" is None and the instance does not have it either.')
+        if isinstance(segment, str):
+            segment = self.read_align_file(path=segment)
+        if isinstance(word, str):
+            word = self.read_align_file(path=word)
+        wavdur = self.__wav_dur(wavpath)
+        tgtx = self.__textgrid_main(segment=segment, word=word, wavdur=wavdur)
+        outpath = wavpath.replace('.wav','.TextGrid')
+        with open(outpath, 'w') as f:
+            f.writelines(tgtx)
+        return None
+
+    def __textgrid_main ( self, segment, word, wavdur ):
+        hdtx = self.__textgrid_header(wavdur=wavdur)
+        mtx_seg = self.__textgrid_middle(wavdur=wavdur, name='segments')
+        btx_seg = self.__textgrid_body(df=segment, word_or_segment='segment')
+        mtx_wrd = self.__textgrid_middle(wavdur=wavdur, name='words')
+        btx_wrd = self.__textgrid_body(df=word, word_or_segment='word')
+        comb = hdtx + mtx_seg + btx_seg + mtx_wrd + btx_wrd
+        comb = [ i + '\n' for i in comb ]
+        return comb
+
+    def __four_spaces ( self ):
+        return '        '
+
+    def __textgrid_header ( self, wavdur ):
+        hdtx = []
+        hdtx.append('File type = "ooTextFile"')
+        hdtx.append('Object class = "TextGrid"')
+        hdtx.append('')
+        hdtx.append('xmin = 0')
+        hdtx.append('xmax = {}'.format(wavdur))
+        hdtx.append('tiers? <exists> ')
+        hdtx.append('size = 2')
+        hdtx.append('item []:')
+        return hdtx
+
+    def __textgrid_middle ( self, wavdur, name ):
+        tab = self.__four_spaces()
+        mdtx = []
+        mdtx.append('{0}item [1]:'.format(tab))
+        mdtx.append('{0}{0}class = "IntervalTier"'.format(tab))
+        mdtx.append('{0}{0}name = "{1}"'.format(tab,name))
+        mdtx.append('{0}{0}xmin = 0'.format(tab))
+        mdtx.append('{0}{0}xmax = {1}'.format(tab,wavdur))
+        return mdtx
+
+    def __textgrid_body ( self, df, word_or_segment):
+        ctype = word_or_segment
+        tab = self.__four_spaces()
+        res = [ '{0}{0}intervals: size = {1}'.format(tab,len(df)) ]
+        for i in range(len(df)):
+            iv = i+1
+            st = df['start'][i]
+            ed = df['end'][i]
+            wd = df[ctype][i]
+            res.append('{0}{0}intervals [{1}]:'.format(tab,iv))
+            res.append('{0}{0}{0}xmin = {1}'.format(tab,st))
+            res.append('{0}{0}{0}xmax = {1}'.format(tab,ed))
+            res.append('{0}{0}{0}text = "{1}"'.format(tab,wd))
+        return res
 

@@ -6,5 +6,5 @@ Ultrasound images exported by an ultrasound-recording software AAA can be prepro
 
 from pyult.pyult import *
 
-__version__ = '0.0.1'
+__version__ = '0.1.1'
 

@@ -1,0 +1,6 @@
+include MANIFEST.in
+include README.md
+include LICENSE.txt
+graft pyult
+graft tests
+global-exclude __pycache__
