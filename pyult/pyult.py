@@ -8,6 +8,8 @@ import math
 import os
 import subprocess
 import soundfile as sf
+import pyper
+import multiprocessing as mp
 
 class Files:
     def __init__ (self):
@@ -124,12 +126,31 @@ class Files:
                 print(i)
         return res
 
+    def parent ( self, path=None, inplace=False):
+        if path is None:
+            path = self.paths
+        isstr = isinstance(path, str)
+        if isstr:
+            path = [path]
+        path = [ pathlib.Path(i) for i in path ]
+        isdr = [ i.is_dir() for i in path ]
+        path = [ i if j else i.parent for i,j in zip(path, isdr) ]
+        path = [ str(i) for i in path ]
+        if isstr:
+            path = path[0]
+        if inplace:
+            self.paths= path
+            path = None
+        return path
+
+
 class UltFiles (Files):
     def __init__(self, directory=''):
         if directory!='':
             self.set_paths(directory=directory)
 
     def set_paths (self, directory):
+        self.wdir = directory
         self.paths = {}
         self.paths['txt']      = self.find(directory, '.txt')
         self.paths['ult']      = self.find(directory, '.ult')
@@ -137,6 +158,9 @@ class UltFiles (Files):
         self.paths['textgrid'] = self.find(directory, '.TextGrid')
         self.paths['ustxt'] = [ i for i in self.paths['txt'] if 'US.txt' in i ]
         self.paths['txt']   = [ i for i in self.paths['txt'] if not 'US.txt' in i ]
+        self.paths['txt']   = [ i for i in self.paths['txt'] if not '_Track' in i ]
+        self.paths['phoneswithQ']      = self.find(directory, '.phoneswithQ')
+        self.paths['words']      = self.find(directory, '.words')
     
     def is_all_set (self, verbose=False, exclude_empty_list=False):
 
@@ -220,7 +244,7 @@ class Prompt (UltFiles):
     def reset_attr(self):
         self.prompt, self.date, self.participant = ['']*3
     def read(self, path, encoding=None, inplace=False):
-        self.reset_attr()
+        Prompt.reset_attr(self)
         with open(path, "r", encoding=encoding) as f:
             content = f.readlines()
         content = [ i.rstrip('\n') for i in content ]
@@ -231,6 +255,17 @@ class Prompt (UltFiles):
             self.dict_to_attr(content)
             content = None
         return content
+    def to_alignment_txt ( self, prmptpath, wavpath):
+        prompt = Prompt.read(self, prmptpath)
+        prompt = prompt['prompt']
+        prompt = prompt.split(' ')
+        prompt = [ i + '\n' for i in prompt ]
+        opath = wavpath.replace('.wav', '.txt')
+        with open(opath, 'w') as f:
+            f.writelines(prompt)
+        return None
+
+        
 
 class UStxt (UltFiles):
     def __init__(self, path=None, encoding=None):
@@ -249,7 +284,7 @@ class UStxt (UltFiles):
         self.framespersec = None
         self.timeinsecsoffirstframe = None
     def read (self, path, encoding=None, inplace=False):
-        self.reset_attr()
+        UStxt.reset_attr(self)
         with open(path, "r", encoding=encoding) as f:
             content = f.readlines()
         content = [ i.rstrip('\n') for i in content ]
@@ -280,7 +315,7 @@ class Ult (UltFiles):
     def reset_attr(self):
         self.vector = None
     def read (self, path, inplace=False):
-        self.reset_attr()
+        Ult.reset_attr(self)
         vect = np.fromfile(open(path, "rb"), dtype=np.uint8)
         res_dct = { 'vector':vect }
         if inplace:
@@ -288,19 +323,9 @@ class Ult (UltFiles):
             res_dct = None
         return res_dct
 
-class UltPicture (Ult, UStxt, Prompt):
+class UltAnalysis (Ult, UStxt, Prompt):
     def __init__ (self):
-        self.reset_attr()
-        return None
-
-    def reset_attr (self):
-        self.img = None
-        self.df = None
-        Files.reset_attr(self)
-        Prompt.reset_attr(self)
-        UStxt.reset_attr(self)
-        Ult.reset_attr(self)
-        return None
+        pass
 
     def read (self, path, inplace=False):
         is_ustxt = bool(re.search('US\\.txt$', path))
@@ -320,29 +345,114 @@ class UltPicture (Ult, UStxt, Prompt):
             res_dct = None
         return res_dct
 
-    def __add_number_of_frames (self):
+    def vec_to_pics (self, vector=None, inplace=False):
+        if vector is None:
+            vector = self.vector
+        self._add_number_of_frames()
+        img = vector.reshape(self.number_of_frames, self.numvectors, self.pixpervector)
+        img  = np.rot90(img, axes=(1,2))
+        img = self._inplace_img(img=img, inplace=inplace)
+        return img
+
+    def _add_number_of_frames (self):
         try:
             self.number_of_frames = self.vector.size // int(self.framesize)
         except AttributeError:
             print('No enough attributes found. Check if all the necessary files are loaded.')
 
-    def vec_to_pics (self, vector=None, inplace=False):
-        if vector is None:
-            vector = self.vector
-        self.__add_number_of_frames()
-        img = vector.reshape(self.number_of_frames, self.numvectors, self.pixpervector)
-        img  = np.rot90(img, axes=(1,2))
-        img = self.__inplace(img=img, inplace=inplace)
+    def _inplace_img (self, img, inplace):
+        if inplace:
+            self.img = img
+            img = None
         return img
 
+    def _inplace_df (self, df, inplace):
+        if inplace:
+            self.df = df
+            df = None
+        return df 
+
+    def _format_imgs (self, img=None):
+        img = self._getimg(img=img)
+        typ = self._imgtype(img=img)
+        if typ=='n2':
+            img = [[img]]
+        elif typ=='n3' or typ=='l2':
+            img = [ [i] for i in img ]
+        elif typ=='l3':
+            img = [ [ j for j in i ] for i in img ]
+        else:
+            raise ValueError('Image type is not recognizable. Check the structure of the input image(s).')
+        return img
+
+    def _finish_imgs (self, img):
+        if len(img)==1:
+            img = img[0][0]
+        else:
+            if len(img[0])==1:
+                img = [ j for i in img for j in i ]
+                shp = [ i.shape for i in img ]
+                if len(set(shp))==1:
+                    img = np.stack(img)
+        return img
+
+    def _getimg (self, img=None):
+        if img is None:
+            try:
+                img = self.img
+            except AttributeError:
+                print('Error: Image matrix not found')
+                return None
+        return img
+
+    def _imgtype (self, img=None):
+        img = self._getimg(img=img)
+        islist = isinstance(img, list)
+        isnump = isinstance(img, np.ndarray)
+        if islist:
+            if not isinstance(img[0], np.ndarray):
+                raise ValueError("Elements in a list of images should be numpy.ndarray.")
+            dims = len(img[0].shape)
+            if dims==2:
+                imgtype = 'l2'
+            elif dims==3:
+                imgtype = 'l3'
+            else:
+                raise ValueError("Provide each image in a list in the 2 or 3 dimensions.")
+        elif isnump:
+            dims = len(img.shape)
+            if dims==2:
+                imgtype = 'n2'
+            elif dims==3:
+                imgtype = 'n3'
+            else:
+                raise ValueError("Images should be 2 or 3 dimensions.")
+        else:
+            raise ValueError("Provide image(s) as list or numpy.array.")
+        return imgtype
+
+
+class UltPicture (UltAnalysis):
+    def __init__ (self):
+        self.reset_attr()
+        return None
+
+    def reset_attr (self):
+        self.img = None
+        Files.reset_attr(self)
+        Prompt.reset_attr(self)
+        UStxt.reset_attr(self)
+        Ult.reset_attr(self)
+        return None
+
     def save_img (self, path, img=None):
-        img = self.__getimg(img=img)
+        img = self._getimg(img=img)
         cv2.imwrite(path, img)
         return None
 
     def read_img (self, path, grayscale=True, inplace=False):
         img = cv2.imread(path, 0) if grayscale else cv2.imread(path)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def flip (self, flip_direction=None, img=None, inplace=False):
@@ -367,46 +477,29 @@ class UltPicture (Ult, UStxt, Prompt):
                 else:
                     raise ValueError('Provide directions of flipping as "x", "y", or "xy".')
             return flip_direction
-        img = self.__format_imgs(img=img)
+        img = self._format_imgs(img=img)
         drct = __flip_drct(img=img[0][0], flip_direction=flip_direction)
         img = [ [ np.flip(j, drct) for j in i ] for i in img ]
-        img = self.__finish_imgs(img=img)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._finish_imgs(img=img)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def reduce_resolution (self, img=None, every_x=1, every_y=1, inplace=False):
-        img = self.__format_imgs(img=img)
+        img = self._format_imgs(img=img)
         img = [ [ j[::every_y, ::every_x] for j in i ] for i in img ]
-        img = self.__finish_imgs(img=img)
-        img = self.__inplace(img=img, inplace=inplace)
-        return img
-
-    def __finish_imgs (self, img):
-        if len(img)==1:
-            img = img[0][0]
-        else:
-            if len(img[0])==1:
-                img = [ j for i in img for j in i ]
-                shp = [ i.shape for i in img ]
-                if len(set(shp))==1:
-                    img = np.stack(img)
-        return img
-
-    def __inplace (self, img, inplace):
-        if inplace:
-            self.img = img
-            img = None
+        img = self._finish_imgs(img=img)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def resize (self, new_xy, img=None, inplace=False):
-        img = self.__format_imgs(img=img)
+        img = self._format_imgs(img=img)
         img = [ [ cv2.resize(src=j, dsize=new_xy) for j in i ] for i in img ]
-        img = self.__finish_imgs(img=img)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._finish_imgs(img=img)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def to_square (self, img=None, glbl=False, inplace=False):
-        img = self.__format_imgs(img=img)
+        img = self._format_imgs(img=img)
 
         def __squsize (img):
             num_dim = len(img.shape)
@@ -431,15 +524,15 @@ class UltPicture (Ult, UStxt, Prompt):
 
         else:
             img = [ [ __resize_squ(img=j) for j in i ] for i in img ]
-        img = self.__finish_imgs(img=img)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._finish_imgs(img=img)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def crop (self, crop_points, img=None, x_reverse=False, y_reverse=False, inplace=False, lineonly=False):
-        img = self.__format_imgs(img=img)
+        img = self._format_imgs(img=img)
         img = [ [ self.__crop2d(crop_points, j, x_reverse, y_reverse, lineonly) for j in i ] for i in img ]
-        img = self.__finish_imgs(img=img)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._finish_imgs(img=img)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def __crop2d (self, crop_points, img=None, x_reverse=False, y_reverse=False, lineonly=False):
@@ -471,112 +564,25 @@ class UltPicture (Ult, UStxt, Prompt):
         return img
 
         
-    def to_df (self, img=None, inplace=False, reverse=None, combine=False, add_time=False, fps=None, norm_frame=False, norm_df=False):
-
-        img = self.__format_imgs(img=img)
-
-        if len(img[0])>1:
-            cnt = 0
-            for inda,i in enumerate(img):
-                for indb,j in enumerate(i):
-                    img[inda][indb] = self.to_df_2d(img=j, frame_id=cnt, reverse=reverse)
-                    cnt += 1
-        else:
-            img = [ [ self.to_df_2d(img=j, frame_id=frm, reverse=reverse) for j in i ] for frm,i in enumerate(img) ]
-
-        dfs = [ j for i in img for j in i ]
-
-        if isinstance(norm_frame, bool):
-            if norm_frame:
-                dfs = [ self.normalize(df=i, coln=None) for i in dfs ]
-        else:
-            dfs = [ self.normalize(df=i, coln=norm_frame) for i in dfs ]
-
-        if combine:
-            dfs = pd.concat(dfs, ignore_index=True)
-
-        if add_time:
-            dfs = self.__addtime(df=dfs, fps=fps)
-
-        if isinstance(norm_df, bool):
-            if norm_df:
-                dfs = self.normalize(df=dfs, coln=None)
-        else:
-            dfs = self.normalize(df=dfs, coln=norm_df)
-
-        if inplace:
-            self.df = dfs
-            return None
-        else:
-            return dfs
-
-    def to_df_2d (self, img=None, frame_id=None, reverse=None):
-        if not reverse is None:
-            if 'x' in reverse:
-                img = img[:, ::-1]
-            if 'y' in reverse:
-                img = img[::-1, :]
-        ult  = img.flatten()
-        xlen = img.shape[1]
-        ylen = img.shape[0]
-        xxx = np.array(list(range(xlen))*ylen)
-        yyy = np.repeat(np.arange(ylen), xlen)
-        df = pd.DataFrame({'brightness':ult, 'x':xxx, 'y':yyy})
-        if not frame_id is None:
-            df['frame'] = frame_id
-        return df
-
-    def __addtime (self, df=None, fps=None):
-        df = self.__getdf(df=df)
-        if fps is None:
-            if hasattr(self, 'framespersec'):
-                fps = self.framespersec
-            else:
-                raise AttributeError('fps (self.framespersec) not found.')
-        df['time'] = df['frame'] * (1/fps)
-        return df
-
-    def normalize_vec (self, vec):
-        if isinstance(vec[0],str):
-            res = vec
-        else:
-            if isinstance(vec, list):
-                vec = pd.Series(vec)
-            res = (vec - vec.min()) / (vec.max() - vec.min())
-        return res
-
-    def normalize (self, df=None, coln=None):
-        df = self.__getdf(df=df)
-        if coln is None:
-            df = df.apply(self.normalize_vec)
-        else:
-            df = df.apply(lambda x: self.normalize_vec(x) if x.name in coln else x)
-        return df
-
-    def save_dataframe (self, outpath, df=None):
-        df = self.__getdf(df=df)
-        df.to_csv(outpath, sep='\t', header=True, index=False)
-        return None
-
-    def fanshape (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False):
-        img = self.__getimg(img=img)
+    def fanshape (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False, force_general_param=False, numvectors=None):
+        img = self._getimg(img=img)
         dimnum = len(img.shape)
         if dimnum==2:
-            img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose)
+            img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose, force_general_param, numvectors)
         elif dimnum==3:
             if img.shape[-1]==3:
-                img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose)
+                img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose, force_general_param, numvectors)
             else:
-                img_fst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, verbose) for i in img[0:1]  ]
-                img_rst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, False)   for i in img[1:] ]
+                img_fst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, verbose, force_general_param, numvectors) for i in img[0:1]  ]
+                img_rst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, False, force_general_param, numvectors)   for i in img[1:] ]
                 img = img_fst + img_rst
         else:
             raise ValueError('self.fanshape is implemented only for a single or list of 2D grayscale images or a single RGB image.')
 
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
-    def fanshape_2d (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False):
+    def fanshape_2d (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False, force_general_param=False, numvectors=None):
 
         def cart2pol(x, y):
             r = math.sqrt(x**2 + y**2)
@@ -621,13 +627,13 @@ class UltPicture (Ult, UStxt, Prompt):
             return img
 
         nec_attrs = [ 'angle', 'zerooffset', 'pixpervector', 'numvectors' ]
-        param_ok = all([ hasattr(self, i) for i in nec_attrs ])
+        param_ok = all([ hasattr(self, i) for i in nec_attrs ]) if not force_general_param else False
 
         if param_ok:
             angle = self.angle
             zero_offset = self.zerooffset
             pixels_per_mm = self.pixelspermm
-            number_of_vectors = self.numvectors
+            number_of_vectors = self.numvectors if numvectors is None else numvectors
         else:
             img = cv2.resize(img, (500,500))
             angle = 0.0031
@@ -647,7 +653,7 @@ class UltPicture (Ult, UStxt, Prompt):
             print('pixels_per_mm: '  + str(pixels_per_mm)    + ' (Modified by the argument "magnify")')
             print('num_of_vectors: ' + str(number_of_vectors))
 
-        img = self.__getimg(img=img)
+        img = self._getimg(img=img)
         img = np.rot90(img, 3)
         dimnum = len(img.shape)
         if dimnum==2:
@@ -676,7 +682,7 @@ class UltPicture (Ult, UStxt, Prompt):
                     'grayscale': grayscale})
         img = trim_picture(img)
         img = np.rot90(img, 1)
-        img = self.__inplace(img=img, inplace=inplace)
+        img = self._inplace_img(img=img, inplace=inplace)
         return img
 
     def average_img (self, imgs):
@@ -703,7 +709,7 @@ class UltPicture (Ult, UStxt, Prompt):
         return mean_img
 
     def to_video ( self, outpath='./video.avi', imgs=None, fps=None ):
-        img = self.__getimg(img=img)
+        imgs = self._getimg(img=imgs)
         if fps is None:
             fps = self.framespersec if hasattr(self, 'framespersec') else 10
         else:
@@ -729,65 +735,8 @@ class UltPicture (Ult, UStxt, Prompt):
         out.release()
         return None
 
-    def __imgtype (self, img=None):
-        img = self.__getimg(img=img)
-        islist = isinstance(img, list)
-        isnump = isinstance(img, np.ndarray)
-        if islist:
-            if not isinstance(img[0], np.ndarray):
-                raise ValueError("Elements in a list of images should be numpy.ndarray.")
-            dims = len(img[0].shape)
-            if dims==2:
-                imgtype = 'l2'
-            elif dims==3:
-                imgtype = 'l3'
-            else:
-                raise ValueError("Provide each image in a list in the 2 or 3 dimensions.")
-        elif isnump:
-            dims = len(img.shape)
-            if dims==2:
-                imgtype = 'n2'
-            elif dims==3:
-                imgtype = 'n3'
-            else:
-                raise ValueError("Images should be 2 or 3 dimensions.")
-        else:
-            raise ValueError("Provide image(s) as list or numpy.array.")
-        return imgtype
-
-    def __getimg (self, img=None):
-        if img is None:
-            try:
-                img = self.img
-            except AttributeError:
-                print('Error: Image matrix not found')
-                return None
-        return img
-
-    def __format_imgs (self, img=None):
-        img = self.__getimg(img=img)
-        typ = self.__imgtype(img=img)
-        if typ=='n2':
-            img = [[img]]
-        elif typ=='n3' or typ=='l2':
-            img = [ [i] for i in img ]
-        elif typ=='l3':
-            img = [ [ j for j in i ] for i in img ]
-        else:
-            raise ValueError('Image type is not recognizable. Check the structure of the input image(s).')
-        return img
-
-    def __getdf (self, df=None):
-        if df is None:
-            try:
-                df = self.df
-            except AttributeError:
-                print('Error: Dataframe not found')
-                return None
-        return df
-
     def add_direction (self, img=None, arrow=True, inplace=False, color=(0,0,0)):
-        img = self.__getimg(img=img)
+        img = self._getimg(img=img)
         height = img.shape[0]
         width  = img.shape[1]
         hwdiff = width/height
@@ -819,6 +768,135 @@ class UltPicture (Ult, UStxt, Prompt):
             return None
         else:
             return img
+
+    def add_line ( self, img=None, pos_x=None, pos_y=None, thickness=1, color=(0,0,255), inplace=False):
+        if thickness>0:
+            thk = thickness//2
+            thk = int(thk)
+        else:
+            raise ValueError('thickness must be positive.')
+        img = self._getimg(img=img)
+        img = img.astype('uint8')
+        if len(img.shape)==2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        if not pos_x is None:
+            img[:, pos_x-thk:pos_x+thk+1, :] = color
+        if not pos_y is None:
+            img[pos_y-thk:pos_y+thk+1, :, :] = color
+        img = self._inplace_img(img=img, inplace=inplace)
+        return img
+
+    def __peaks ( self, vect, howmany=3 ):
+        def __cross_zero ( nums ):
+            return (nums[0]>0 and nums[1]<0) or (nums[0]<0 and nums[1]>0)
+        f0 = vect
+        d1 = Math.deriv_discrete(self, f0)
+        d2 = Math.deriv_discrete(self, d1)
+        d1_0 = np.where(d1==0)[0]
+        if len(d1_0)==0:
+            aaa = [ __cross_zero(d1[i:(i+2)]) for i in range(len(d1)-1) ]
+            aaa = np.array(list(aaa) + [False])
+            d1_0 = np.where(aaa)[0]
+        try:
+            aaa = d1_0 + 1
+            bbb = np.concatenate([d1_0[1:],np.arange(1)])
+            rmpos = np.where(aaa==bbb)[0]+1
+            ccc = np.delete(d1_0, rmpos)
+        except TypeError:
+            pass
+        peak_poses = ccc[d2[ccc]<0]
+        peak_vals = f0[peak_poses]
+        peak_dict = { i:j for i,j in zip(peak_poses, peak_vals) if i <= len(f0)*3/4 }
+        max_vals = np.sort(np.array(list(peak_dict.values())))[::-1][:howmany]
+        peak_dict = { i:j for i,j in peak_dict.items() if j in max_vals }
+        peak_poses = np.array(list(peak_dict.keys()))
+        peak_vals = np.array(list(peak_dict.values()))
+        aaa = np.sort(peak_vals)[::-1][:2]
+        peak_ratio = aaa[0]/aaa[1]
+        return {'peak_poses':peak_poses, 'peak_vals':peak_vals, 'peak_ratio':peak_ratio}
+
+    def _fitted_values ( self, vect ):
+        return Math.fitted_values(self, vect)
+
+    def fit_spline ( self, img, cores=1 ):
+        if cores != 1:
+            pool = mp.Pool(cores)
+            pks = pool.map(self._fitted_values, [img[:,i] for i in range(img.shape[1])])
+        else:
+            pks = [ Math.fitted_values(self, img[:,i]) for i in range(img.shape[1])]
+        pks = [ self.__peaks(i) for i in pks ]
+        pks = { i:j for i,j in enumerate(pks) }
+
+        aaa = len(pks)//4
+        bbb = np.arange(aaa, len(pks)-aaa)
+        selpks = { i:j for i,j in pks.items() if i in bbb }
+        aaa = max([ i['peak_ratio'] for i in selpks.values() ])
+        trpk = { i:j for i,j in selpks.items() if j['peak_ratio']==aaa }
+        trpk_id = list(trpk.keys())[0]
+        def max_pos_val ( dct ):
+            pos = dct['peak_vals'].argmax()
+            mxps = dct['peak_poses'][pos]
+            mxvl = dct['peak_vals'][pos]
+            return { 'max_pos':mxps, 'max_val':mxvl }
+        mxpv = max_pos_val(trpk[trpk_id])
+        trpk[trpk_id]['peak_poses'] = mxpv['max_pos']
+        trpk[trpk_id]['peak_vals'] = mxpv['max_val']
+
+        def nearest_pos( current_pos, candidates, threshold=10000 ):
+            diff = abs(candidates - current_pos)
+            val = diff.min()
+            pos = diff.argmin()
+            pos = pos if val <= threshold else None
+            return pos
+        
+        threshold = img.shape[0]/10
+        threshold_val = 0.5
+
+        cpos = trpk[trpk_id]['peak_poses']
+        cval = trpk[trpk_id]['peak_vals']
+        for i in range(trpk_id+1, max(pks.keys())+1):
+            cand = pks[i]['peak_poses']
+            tpos = nearest_pos(cpos, cand, threshold)
+            if (tpos is None) or (pks[i]['peak_vals'][tpos]/cval < threshold_val):
+                pks[i]['peak_poses'] = None
+                pks[i]['peak_vals']  = None
+            else:
+                pks[i]['peak_poses'] = pks[i]['peak_poses'][tpos]
+                pks[i]['peak_vals']  = pks[i]['peak_vals'][tpos]
+                cpos = pks[i]['peak_poses']
+                cval = pks[i]['peak_vals']
+
+        cpos = trpk[trpk_id]['peak_poses']
+        cval = trpk[trpk_id]['peak_vals']
+        for i in range(trpk_id-1, min(pks.keys())-1, -1):
+            cand = pks[i]['peak_poses']
+            tpos = nearest_pos(cpos, cand, threshold)
+            if (tpos is None) or (pks[i]['peak_vals'][tpos]/cval < threshold_val):
+                pks[i]['peak_poses'] = None
+                pks[i]['peak_vals']  = None
+            else:
+                pks[i]['peak_poses'] = pks[i]['peak_poses'][tpos]
+                pks[i]['peak_vals']  = pks[i]['peak_vals'][tpos]
+                cpos = pks[i]['peak_poses']
+                cval = pks[i]['peak_vals']
+
+        xy = { i:j['peak_poses'] for i,j in pks.items() }
+        ftv = Math.fitted_values(self, vect=list(xy.values()), pred=list(xy.keys()), knots=10)
+        ftv = ftv.round().astype(int)
+        return {'index':np.array(list(xy.keys())), 'fitted_values':ftv}
+
+    def fit_spline_img ( self, img, cores=1 ):
+        ftv = self.fit_spline(img=img, cores=cores)
+        yyy = ftv['fitted_values']
+        xxx = ftv['index']
+        img = img.astype('uint8')
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        for xpos,ypos in zip(xxx, yyy):
+            if not ypos is None:
+                img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
+        return img
+
+
 
 
 class Alignment (Files):
@@ -949,4 +1027,276 @@ class Alignment (Files):
             res.append('{0}{0}{0}xmax = {1}'.format(tab,ed))
             res.append('{0}{0}{0}text = "{1}"'.format(tab,wd))
         return res
+
+    def prepare_audio ( self, audiopath, outpath, ff=None ):
+        if ff is None:
+            try:
+                ff = self.timeinsecsoffirstframe
+            except AttributeError:
+                ff = 0
+                print('WARNING: Time in the first frame is not found. Ultrasound images begin to be recorded usually AFTER the audio recording started. Check if the beginnings of the audio and video really match.')
+        cmd = ['sox', audiopath, outpath, 'trim', str(ff), 'rate', '16000']
+        subprocess.call(cmd)
+        return None
+
+
+class UltDf (UltAnalysis):
+    def __init__ (self, obj=None):
+        self.reset_attr()
+        if not obj is None:
+            self.__dict__ = obj.__dict__.copy()
+        return None
+
+    def reset_attr (self):
+        self.df = None
+        Files.reset_attr(self)
+        Prompt.reset_attr(self)
+        UStxt.reset_attr(self)
+        Ult.reset_attr(self)
+        return None
+
+    def img_to_df (self, img=None, inplace=False, reverse=None, combine=True, add_time=False, fps=None, norm_frame=False, norm_df=False):
+
+        img = self._format_imgs(img=img)
+
+        if len(img[0])>1:
+            cnt = 0
+            for inda,i in enumerate(img):
+                for indb,j in enumerate(i):
+                    img[inda][indb] = self.__to_df_2d(img=j, frame_id=cnt, reverse=reverse)
+                    cnt += 1
+        else:
+            img = [ [ self.__to_df_2d(img=j, frame_id=frm, reverse=reverse) for j in i ] for frm,i in enumerate(img) ]
+
+        dfs = [ j for i in img for j in i ]
+
+        if isinstance(norm_frame, bool):
+            if norm_frame:
+                dfs = [ self.normalize(df=i, coln=None) for i in dfs ]
+        else:
+            dfs = [ self.normalize(df=i, coln=norm_frame) for i in dfs ]
+
+        if combine:
+            dfs = pd.concat(dfs, ignore_index=True)
+
+        if add_time:
+            dfs = self.__addtime(df=dfs, fps=fps)
+
+        if isinstance(norm_df, bool):
+            if norm_df:
+                dfs = self.normalize(df=dfs, coln=None)
+        else:
+            dfs = self.normalize(df=dfs, coln=norm_df)
+
+        if inplace:
+            self.df = dfs
+            return None
+        else:
+            return dfs
+
+    def __to_df_2d (self, img=None, frame_id=None, reverse=None):
+        if not reverse is None:
+            if 'x' in reverse:
+                img = img[:, ::-1]
+            if 'y' in reverse:
+                img = img[::-1, :]
+        ult  = img.flatten()
+        xlen = img.shape[1]
+        ylen = img.shape[0]
+        xxx = np.array(list(range(xlen))*ylen)
+        yyy = np.repeat(np.arange(ylen), xlen)
+        df = pd.DataFrame({'brightness':ult, 'x':xxx, 'y':yyy})
+        if not frame_id is None:
+            df['frame'] = frame_id
+        return df
+
+    def __addtime (self, df=None, fps=None):
+        df = self.__getdf(df=df)
+        if fps is None:
+            if hasattr(self, 'framespersec'):
+                fps = self.framespersec
+            else:
+                raise AttributeError('fps (self.framespersec) not found.')
+        df['time'] = df['frame'] * (1/fps)
+        return df
+
+    def normalize_vec (self, vec):
+        if isinstance(vec[0],str):
+            res = vec
+        else:
+            if isinstance(vec, list):
+                vec = pd.Series(vec)
+            res = (vec - vec.min()) / (vec.max() - vec.min())
+        return res
+
+    def normalize (self, df=None, coln=None):
+        df = self.__getdf(df=df)
+        if coln is None:
+            df = df.apply(self.normalize_vec)
+        else:
+            df = df.apply(lambda x: self.normalize_vec(x) if x.name in coln else x)
+        return df
+
+    def save_dataframe (self, outpath, df=None):
+        df = self.__getdf(df=df)
+        df.to_csv(outpath, sep='\t', header=True, index=False)
+        return None
+
+    def __getdf (self, df=None):
+        if df is None:
+            try:
+                df = self.df
+            except AttributeError:
+                print('Error: Dataframe not found')
+                return None
+        return df
+
+    def fit_gam (self, df, formula, outdir=None):
+        if outdir is None:
+            outdir = self.wdir
+        if isinstance(df, pd.DataFrame):
+            outpath_df = outdir + '/df.gz'
+            self.save_dataframe(outpath_df, df)
+            df = outpath_df
+        if not self.exist(formula):
+            outpath_frml = outdir + '/formula.txt'
+            with open(outpath_frml, 'w') as f:
+                f.write(formula)
+            formula = outpath_frml
+
+        r = pyper.R()
+        r('ready_mgcv = require(mgcv)')
+        r('ready_datatable = require(data.table)')
+        ready_mgcv = r('ready_mgcv').split(' ')[1].strip()
+        ready_datatable = r('ready_datatable').split(' ')[1].strip()
+
+        if all([ready_mgcv=='TRUE', ready_datatable=='TRUE']):
+            r('dat = fread("{}", sep="\t")'.format(df))
+            r('frml = scan("{}", character())'.format(formula))
+            r('frml = paste(frml, collapse=" ")')
+            r('frml = gsub(", *data *= *[^,)]+", ", data=dat", frml)')
+            r('eval(parse(text=sprintf("mdl = %s", frml)))')
+            r('save(list=c("mdl"), file="{}")'.format(outdir+'/model.Rdata'))
+            print('Fitted model is produced in the specified directory or in the directory set by self.set_paths() under the name "model.Rdata"')
+        else:
+            raise ImportError('You need to install mgcv and data.table in R first.')
+        return None
+
+    def integrate_segments ( self, phoneswithQ_path=None, words_path=None, df=None, inplace=False, cores=1 ):
+        df = self.__getdf(df=df)
+        phone_exist = self.exist(phoneswithQ_path)
+        words_exist = self.exist(words_path)
+        if phone_exist and words_exist:
+            align = self.__formatted_segment_df(phoneswithQ_path, words_path)
+            if cores == 1:
+                df['segment'] = [ self._whichsegm(align, i, 'segment', None) for i in df['time'] ]
+                df['word']    = [ self._whichsegm(align, i, 'word',    None) for i in df['time'] ]
+            elif cores > 1:
+                pool = mp.Pool(cores)
+                args = [ (align, i, 'segment', None) for i in df['time'] ]
+                df['segment'] = pool.map(self._parallelize, args)
+                args = [ (align, i, 'word',    None) for i in df['time'] ]
+                df['word'] = pool.map(self._parallelize, args)
+            else:
+                raise ValueError('cores must be positive and integer.')
+            df = self._inplace_df(df=df, inplace=inplace)
+        else:
+            raise FileNotFoundError('*.phoneswithQ or *.words does not exist.')
+        return df
+
+    def _parallelize (self, arg):
+        return self._whichsegm(arg[0], arg[1], arg[2], arg[3])
+    
+    def __formatted_segment_df ( self, phoneswithQ_path=None, words_path=None ):
+        aln = Alignment()
+        aln.read_align_file(phoneswithQ_path, inplace=True)
+        aln.read_align_file(words_path, inplace=True)
+        aln.format_align_files()
+        aln.comb_segm_word()
+        return aln.align_df
+
+    def _whichsegm ( self, align_df, time, typ='segment', outofrangevalue='error' ):
+        if not typ in ['segment','word']:
+            raise ValueError('typ must be segment or word.')
+        isseg = typ=='segment'
+        sta = align_df['start']
+        end = align_df['end']
+        seg = align_df['segment']
+        wrd = align_df['word']
+        aaa = time>=sta
+        bbb = time<end
+        pos = aaa & bbb
+        if sum(pos)==0:
+            if outofrangevalue=='error':
+                raise ValueError('time is out of the range.')
+            else:
+                res = outofrangevalue
+        else:
+            if sum(pos)>1:
+                print('WARNING: More than two segments/words matched. Check the dataframe.')
+            res = seg[pos].iloc[0] if isseg else wrd[pos].iloc[0]
+        return res
+
+
+
+
+
+class Math:
+    def __init__ (self):
+        pass
+
+    def fitted_values ( self, vect, pred=None, knots=30, png_out=False, outpath=None, lwd=1, col=('black','red'), xlab='', ylab=''):
+        r = pyper.R()
+        r('ready_mgcv = require(mgcv)')
+        ready_mgcv = r('ready_mgcv').split(' ')[1].strip()
+
+
+        if all([ready_mgcv=='TRUE']):
+            vect = np.array(vect, dtype=np.float)
+            r.assign('vect', vect)
+            if pred is None:
+                r('xxx = seq_along(vect)')
+            else:
+                pred = np.array(pred, dtype=np.float)
+                r.assign('xxx', pred)
+            r('mdl = gam(vect ~ s(xxx, k={}))'.format(knots))
+            r('ndat = data.frame("xxx"=xxx)')
+            r('ftv = as.vector(predict(mdl, newdata=ndat))')
+            ftv = r.get('ftv')
+            #
+            if png_out:
+                if outpath is None:
+                    raise ValueError('outpath is necessary when png_out is True.')
+                if isinstance(lwd, (int,float)):
+                    lwd = (lwd,lwd)
+                if isinstance(lwd, str):
+                    col = (col,col)
+                r('rng = range(c(vect, mdl$fitted.values))')
+                r('png("{}", width=500, height=500)'.format(outpath))
+                r('plot(vect, ylim=rng, type="l", lwd={}, col="{}", xlab="{}", ylab="{}")'.format(lwd[0],col[0],xlab,ylab))
+                r('par(new=T)')
+                r('plot(mdl$fitted.values, ylim=rng, type="l", lwd={}, col="{}", xlab="{}", ylab="{}")'.format(lwd[1],col[1],xlab,ylab))
+                r('dev.off()')
+        else:
+            raise ImportError('You need to install mgcv in R first.')
+        return ftv
+
+    def deriv_discrete ( self, vect ):
+        def __deriv ( vals ):
+            if len(vals)!=3:
+                raise ValueError('Length does not equals to 3.')
+            return vals[-1] - vals[0]
+        isnp = isinstance(vect, np.ndarray)
+        drvs = [ __deriv(vect[(i-1):(i+2)]) for i in range(1,len(vect)-1) ]
+        drvs = [drvs[0]] + drvs + [drvs[-1]]
+        if isnp:
+            drvs = np.array(drvs)
+        return drvs
+
+
+
+
+
+
+
 
