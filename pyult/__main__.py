@@ -7,6 +7,7 @@ import os
 import pdb
 import subprocess
 import shutil
+import copy
 
 def check_all_set ():
     if not upc.is_all_set(exclude_empty_list=True):
@@ -31,10 +32,11 @@ def which_img_type ():
     print('Raw (rectangle) => raw')
     print('Square => squ')
     print('Fan-shape => fan')
+    print('All => all')
     inpt = input()
-    opts = [ 'raw', 'squ', 'fan' ]
+    opts = [ 'raw', 'squ', 'fan', 'all' ]
     if not inpt in opts:
-        raise ValueError('raw, squ, or fan is acceptable.')
+        raise ValueError('raw, squ, fan, all is acceptable.')
     return inpt
 
 def create_dir ( obj, dirname ):
@@ -49,10 +51,17 @@ def prepare_imgs ( obj, ind ):
     return obj
 
 def change_img_shapes ( obj, imgtype ):
-    if imgtype=='squ':
-        obj.to_square(inplace=True)
+    if imgtype=='all':
+        obj.raw = copy.deepcopy(obj.img)
+        obj.squ = obj.to_square(inplace=False)
+        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4)
+    elif imgtype=='raw':
+        obj.raw = copy.deepcopy(obj.img)
+    elif imgtype=='squ':
+        obj.squ = obj.to_square(inplace=False)
     elif imgtype=='fan':
-        obj.fanshape(inplace=True, numvectors=obj.img.shape[-1], magnify=4)
+        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4)
+    delattr(obj, 'img')
     return obj
 
 def determine_flip_directions ():
@@ -76,6 +85,15 @@ def determine_flip_directions ():
     else:
         flp = None
     return flp
+
+def flip_wrapper ( obj, flip_directions ):
+    if hasattr(obj, 'raw'):
+      obj.raw = obj.flip(flip_directions, img=obj.raw, inplace=False)
+    if hasattr(obj, 'squ'):
+      obj.squ = obj.flip(flip_directions, img=obj.squ, inplace=False)
+    if hasattr(obj, 'fan'):
+        obj.fan = obj.flip(flip_directions, img=obj.fan, inplace=False)
+    return obj
 
 def where_to_crop ():
     opts = [ 'yes', 'no' ]
@@ -126,26 +144,41 @@ def produce_pictures ( obj, picture, video, imgtype, flip_directions, wheretocro
             obj.reduce_resolution(every_y=resolreduc, inplace=True)
         obj = change_img_shapes(obj, imgtype)
         if not flip_directions is None:
-            obj.flip(flip_directions, inplace=True)
+            obj.flip_wrapper(obj, flip_directions)
         fname = obj.name(obj.paths['txt'][i], drop_extension=True)
         if video:
-            vid_dir = create_dir(upc, 'Videos')
+            vid_dir = create_dir(obj, 'Videos')
             apath = obj.paths['wav'][i]
             vpath = '{}/{}_temp.avi'.format(vid_dir, fname)
             opath = '{}/{}.avi'.format(vid_dir, fname)
             produce_video(obj, vpath, apath, opath)
         if picture:
-            pic_dir = create_dir(upc, 'Picture')
-            for j in range(len(obj.img)):
-                numdigits = len(str(obj.number_of_frames))
-                opath = '{dr}/{fn}_{im}_{nm:0{wd}}.png'.format(dr=pic_dir, fn=fname, im=imgtype, nm=j, wd=numdigits)
-                obj.save_img(path=opath, img=obj.img[j])
+            pic_dir = create_dir(obj, 'Picture')
+            if hasattr(obj, 'raw'):
+                save_pics(obj, 'raw', pic_dir, fname)
+            if hasattr(obj, 'squ'):
+                save_pics(obj, 'squ', pic_dir, fname)
+            if hasattr(obj, 'fan'):
+                save_pics(obj, 'fan', pic_dir, fname)
+    return None
+
+def save_pics ( obj, imgtype, pic_dir, fname ):
+    for j in range(len(getattr(obj,imgtype))):
+        numdigits = len(str(obj.number_of_frames))
+        opath = '{dr}/{fn}_{im}_{nm:0{wd}}.png'.format(dr=pic_dir, fn=fname, im=imgtype, nm=j, wd=numdigits)
+        obj.save_img(path=opath, img=getattr(obj, imgtype)[j])
     return None
 
 def produce_video ( obj, videopath, audiopath, outpath ):
     if videopath == outpath:
         raise ValueError('videopath and outpath must be different')
-    obj.to_video(videopath)
+    if hasattr(obj, 'raw'):
+        imgs = obj.raw
+    if hasattr(obj, 'squ'):
+        imgs = obj.squ
+    if hasattr(obj, 'fan'): # Fan-shaped pictures have a priority over the other two.
+        imgs = obj.fan
+    obj.to_video(videopath, imgs=imgs)
 
     ff = obj.timeinsecsoffirstframe
     a_temppath = obj.parent(outpath) + '/audio_temp.wav'
