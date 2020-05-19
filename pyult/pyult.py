@@ -1182,31 +1182,28 @@ class UltDf (UltAnalysis):
             raise ImportError('You need to install mgcv and data.table in R first.')
         return None
 
-    def integrate_segments ( self, phoneswithQ_path=None, words_path=None, df=None, inplace=False, cores=1 ):
+    def integrate_segments ( self, phoneswithQ_path=None, words_path=None, df=None, rmvnoise=False, inplace=False ):
         df = self.__getdf(df=df)
         phone_exist = self.exist(phoneswithQ_path)
         words_exist = self.exist(words_path)
         if phone_exist and words_exist:
             align = self.__formatted_segment_df(phoneswithQ_path, words_path)
-            if cores == 1:
-                df['segment'] = [ self._whichsegm(align, i, 'segment', None) for i in df['time'] ]
-                df['word']    = [ self._whichsegm(align, i, 'word',    None) for i in df['time'] ]
-            elif cores > 1:
-                pool = mp.Pool(cores)
-                args = [ (align, i, 'segment', None) for i in df['time'] ]
-                df['segment'] = pool.map(self._parallelize, args)
-                args = [ (align, i, 'word',    None) for i in df['time'] ]
-                df['word'] = pool.map(self._parallelize, args)
-            else:
-                raise ValueError('cores must be positive and integer.')
+            df['segment'] = ''
+            df['word'] = ''
+            for i in align.index:
+                cst = align.loc[i,'start']
+                ced = align.loc[i,'end']
+                csg = align.loc[i,'segment']
+                cwd = align.loc[i,'word']
+                df.loc[ (df.time>cst) & (df.time<ced), 'segment'] = csg
+                df.loc[ (df.time>cst) & (df.time<ced), 'word'] = cwd
+            if rmvnoise:
+                df = self.rmv_noise(df=df)
             df = self._inplace_df(df=df, inplace=inplace)
         else:
             raise FileNotFoundError('*.phoneswithQ or *.words does not exist.')
         return df
 
-    def _parallelize (self, arg):
-        return self._whichsegm(arg[0], arg[1], arg[2], arg[3])
-    
     def __formatted_segment_df ( self, phoneswithQ_path=None, words_path=None ):
         aln = Alignment()
         aln.read_align_file(phoneswithQ_path, inplace=True)
@@ -1215,27 +1212,15 @@ class UltDf (UltAnalysis):
         aln.comb_segm_word()
         return aln.align_df
 
-    def _whichsegm ( self, align_df, time, typ='segment', outofrangevalue='error' ):
-        if not typ in ['segment','word']:
-            raise ValueError('typ must be segment or word.')
-        isseg = typ=='segment'
-        sta = align_df['start']
-        end = align_df['end']
-        seg = align_df['segment']
-        wrd = align_df['word']
-        aaa = time>=sta
-        bbb = time<end
-        pos = aaa & bbb
-        if sum(pos)==0:
-            if outofrangevalue=='error':
-                raise ValueError('time is out of the range.')
-            else:
-                res = outofrangevalue
-        else:
-            if sum(pos)>1:
-                print('WARNING: More than two segments/words matched. Check the dataframe.')
-            res = seg[pos].iloc[0] if isseg else wrd[pos].iloc[0]
-        return res
+    def rmv_noise ( self, colnames=['segment','word'], df=None, noise=None, inplace=False):
+        df = self.__getdf(df=df)
+        if noise is None:
+            noise = ['_p:_','<P>','']
+        for i in colnames:
+            df = df.loc[~df[i].isin(noise),]
+        df = self._inplace_df(df=df, inplace=inplace)
+        return df
+
 
 
 
