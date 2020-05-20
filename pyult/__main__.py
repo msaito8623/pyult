@@ -10,11 +10,21 @@ import shutil
 import copy
 from tqdm import tqdm
 
-def check_all_set ():
-    if not upc.is_all_set(exclude_empty_list=True):
-        upc.is_all_set(exclude_empty_list=True, verbose=True)
-        raise ValueError('You do not have all the necessary files.')
-    return None
+def ask_target_dir (obj):
+    print('\n##########')
+    print('- Give me a file path or a directory path which has all the necessary files.')
+    ok = False
+    while not ok:
+        tdir = input()
+        if obj.exist(tdir):
+            obj.set_paths(tdir)
+            if obj.is_all_set(exclude_empty_list=True):
+                ok = True
+            else:
+                print('- The directory specified does not have all necessary files ready. Please try again.')
+        else:
+            print('- The path specified does not exist. Please try again.')
+    return obj
 
 def what_to_do ():
     print('\n##########')
@@ -25,7 +35,33 @@ def what_to_do ():
     print('--- TextGrids            => tg')
     print('--- If you want them all => all')
     print('--- You can specify them together with a space, e.g. pic vid')
-    return input()
+    ok_inputs = [ 'pic', 'vid', 'df', 'tg', 'all' ]
+    ok_while = False
+    while not ok_while:
+        whattodo = input()
+        whattodo = whattodo.split(' ')
+        whattodo = [ i for i in whattodo if i != '' ]
+        oks = [ i for i in whattodo if     i in ok_inputs ]
+        ngs = [ i for i in whattodo if not i in ok_inputs ]
+        if len(oks)==0:
+            print('- Please choose out of the followings:')
+            print('--- {}'.format(', '.join(ok_inputs)))
+        else:
+            ok_while = True
+    if len(ngs)>0:
+        ngs = ', '.join(ngs)
+        print('')
+        print('- WARNING: Following inputs are ignored.')
+        print('--- {}'.format(ngs))
+    return oks
+
+def whattodo_to_flags ( whattodo ):
+    picT = 'pic' in whattodo
+    vidT = 'vid' in whattodo
+    dfT = 'df' in whattodo
+    tgT = 'tg' in whattodo
+    if whattodo=='all': picT,vidT,dfT,tgT = [True]*4
+    return (picT, vidT, dfT, tgT)
 
 def which_img_type ():
     print('\n##########')
@@ -34,11 +70,56 @@ def which_img_type ():
     print('--- Square          => squ')
     print('--- Fan-shape       => fan')
     print('--- All             => all')
-    inpt = input()
     opts = [ 'raw', 'squ', 'fan', 'all' ]
-    if not inpt in opts:
-        raise ValueError('raw, squ, fan, all is acceptable.')
+    ok = False
+    while not ok:
+        inpt = input()
+        if inpt in opts:
+            ok = True
+        else:
+            print('- Please choose out of the followings:')
+            print('--- {}'.format(', '.join(opts)))
     return inpt
+
+def ask_flip ( vertical=False ):
+    if vertical:
+        direction = 'vertically'
+    else:
+        direction = 'horizontally'
+    print('\n##########')
+    print('- Do you want to flip pictures {}? (yes or no)'.format(direction))
+    opts = [ 'yes', 'no', 'y', 'n']
+    ok = False
+    while not ok:
+        xyflip = input().lower()
+        if xyflip in opts:
+            ok = True
+        else:
+            print('- Please choose out of the followings:')
+            print('--- {}'.format(', '.join(opts)))
+    return xyflip
+
+def ask_flip_to_flags ( xflip, yflip ):
+    xxx = xflip in ['yes','y']
+    yyy = yflip in ['yes','y']
+    if xxx and yyy:
+        flp = 'xy'
+    elif xxx and not yyy:
+        flp = 'x'
+    elif not xxx and yyy:
+        flp = 'y'
+    else:
+        flp = None
+    return flp
+
+def determine_flip_directions ():
+    xflip = ask_flip(vertical=False)
+    yflip = ask_flip(vertical=True)
+    flp = ask_flip_to_flags(xflip, yflip)
+    return flp
+
+
+
 
 def create_dir ( obj, dirname ):
     newdir = obj.wdir + '/' + dirname
@@ -77,28 +158,6 @@ def ask_cores () :
         except ValueError:
             print('cores must be an integer.')
     return cores
-
-def determine_flip_directions ():
-    opts = [ 'yes', 'no' ]
-    print('\n##########')
-    print('- Do you want to flip pictures horizontally? (yes or no)')
-    xflip = input()
-    if not xflip in opts:
-        raise ValueError('yes or no is acceptable.')
-    print('\n##########')
-    print('- Do you want to flip pictures vertically? (yes or no)')
-    yflip = input()
-    if not yflip in opts:
-        raise ValueError('yes or no is acceptable.')
-    if xflip=='yes' and yflip=='yes':
-        flp = 'xy'
-    elif xflip=='yes' and yflip=='no':
-        flp = 'x'
-    elif xflip=='no' and yflip=='yes':
-        flp = 'y'
-    else:
-        flp = None
-    return flp
 
 def flip_wrapper ( obj, flip_directions ):
     if hasattr(obj, 'raw'):
@@ -321,19 +380,11 @@ def yesno_boolean ( yesno ):
 
 
 
-### Body ###
-print('\n##########')
-print('- Give me a file path or a directory path which has all the necessary files.')
-inpt = input()
-upc.set_paths(inpt)
-check_all_set()
 
+### Body ###
+upc = ask_target_dir(upc)
 whattodo = what_to_do()
-picT = 'pic' in whattodo
-vidT = 'vid' in whattodo
-dfT = 'df' in whattodo
-tgT = 'tg' in whattodo
-if whattodo=='all': picT,vidT,dfT,tgT = [True]*4
+picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
 
 if picT or vidT:
     whichimgtype = which_img_type()
@@ -342,6 +393,8 @@ if picT or vidT:
     resolreduc = is_resol_reduc_needed()
     if whichimgtype in ['all','fan']:
         cores = ask_cores()
+    else:
+        cores = 1
     produce_pictures(upc, picT, vidT, whichimgtype, flip_directions, wheretocrop, resolreduc, cores)
 
 if tgT: produce_textgrids(upc)
