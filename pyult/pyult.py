@@ -564,7 +564,7 @@ class UltPicture (UltAnalysis):
         return img
 
         
-    def fanshape (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False, force_general_param=False, numvectors=None):
+    def fanshape (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False, force_general_param=False, numvectors=None, cores=1):
         img = self._getimg(img=img)
         dimnum = len(img.shape)
         if dimnum==2:
@@ -574,13 +574,23 @@ class UltPicture (UltAnalysis):
                 img = self.fanshape_2d(img, magnify, reserve, bgcolor, False, verbose, force_general_param, numvectors)
             else:
                 img_fst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, verbose, force_general_param, numvectors) for i in img[0:1]  ]
-                img_rst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, False, force_general_param, numvectors)   for i in img[1:] ]
+                if cores>1:
+                    args = [ (i, magnify, reserve, bgcolor, False, False, force_general_param, numvectors)   for i in img[1:] ]
+                    pool = mp.Pool(cores)
+                    img_rst = pool.map(self._par_fanshape, args)
+                else:
+                    img_rst = [ self.fanshape_2d(i, magnify, reserve, bgcolor, False, False, force_general_param, numvectors)   for i in img[1:] ]
                 img = img_fst + img_rst
         else:
             raise ValueError('self.fanshape is implemented only for a single or list of 2D grayscale images or a single RGB image.')
 
         img = self._inplace_img(img=img, inplace=inplace)
         return img
+
+    def _par_fanshape(self, args):
+        img, magnify, reserve, bgcolor, inplace, verbose, force_general_param, numvectors = args
+        res = self.fanshape_2d(img=img, magnify=magnify, reserve=reserve, bgcolor=bgcolor, inplace=inplace, verbose=verbose, force_general_param=force_general_param, numvectors=numvectors)
+        return res
 
     def fanshape_2d (self, img=None, magnify=1, reserve=1800, bgcolor=255, inplace=False, verbose=False, force_general_param=False, numvectors=None):
 
