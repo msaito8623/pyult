@@ -51,19 +51,32 @@ def prepare_imgs ( obj, ind ):
     obj.vec_to_pics(inplace=True)
     return obj
 
-def change_img_shapes ( obj, imgtype ):
+def change_img_shapes ( obj, imgtype, cores ):
     if imgtype=='all':
         obj.raw = copy.deepcopy(obj.img)
         obj.squ = obj.to_square(inplace=False)
-        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4)
+        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4, cores=cores)
     elif imgtype=='raw':
         obj.raw = copy.deepcopy(obj.img)
     elif imgtype=='squ':
         obj.squ = obj.to_square(inplace=False)
     elif imgtype=='fan':
-        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4)
+        obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4, cores=cores)
     delattr(obj, 'img')
     return obj
+
+def ask_cores () :
+    print('\n##########')
+    print('- How many cores do you want to use?')
+    ok = False
+    while not ok:
+        cores = input()
+        try:
+            cores = int(cores)
+            ok = True
+        except ValueError:
+            print('cores must be an integer.')
+    return cores
 
 def determine_flip_directions ():
     opts = [ 'yes', 'no' ]
@@ -140,7 +153,7 @@ def is_resol_reduc_needed ():
             raise ValueError('Only integers are acceptable.')
     return nth
 
-def produce_pictures ( obj, picture, video, imgtype, flip_directions, wheretocrop, resolreduc):
+def produce_pictures ( obj, picture, video, imgtype, flip_directions, wheretocrop, resolreduc, cores):
     print('\n##########')
     print('Producing pictures...')
     for i in tqdm(range(len(obj.paths['ustxt']))):
@@ -149,7 +162,7 @@ def produce_pictures ( obj, picture, video, imgtype, flip_directions, wheretocro
             obj.crop(wheretocrop, inplace=True)
         if not resolreduc is None:
             obj.reduce_resolution(every_y=resolreduc, inplace=True)
-        obj = change_img_shapes(obj, imgtype)
+        obj = change_img_shapes(obj, imgtype, cores)
         if not flip_directions is None:
             obj = flip_wrapper(obj, flip_directions)
         fname = obj.name(obj.paths['txt'][i], drop_extension=True)
@@ -327,7 +340,9 @@ if picT or vidT:
     flip_directions = determine_flip_directions()
     wheretocrop = where_to_crop()
     resolreduc = is_resol_reduc_needed()
-    produce_pictures(upc, picT, vidT, whichimgtype, flip_directions, wheretocrop, resolreduc)
+    if whichimgtype in ['all','fan']:
+        cores = ask_cores()
+    produce_pictures(upc, picT, vidT, whichimgtype, flip_directions, wheretocrop, resolreduc, cores)
 
 if tgT: produce_textgrids(upc)
 
