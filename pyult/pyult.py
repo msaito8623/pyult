@@ -373,9 +373,9 @@ class UltAnalysis (Ult, UStxt, Prompt):
             df = None
         return df 
 
-    def _format_imgs (self, img=None):
+    def _format_imgs (self, img=None, rgb=False):
         img = self._getimg(img=img)
-        typ = self._imgtype(img=img)
+        typ = self._imgtype(img=img, rgb=rgb)
         if typ=='n2':
             img = [[img]]
         elif typ=='n3' or typ=='l2':
@@ -406,7 +406,7 @@ class UltAnalysis (Ult, UStxt, Prompt):
                 return None
         return img
 
-    def _imgtype (self, img=None):
+    def _imgtype (self, img=None, rgb=False):
         img = self._getimg(img=img)
         islist = isinstance(img, list)
         isnump = isinstance(img, np.ndarray)
@@ -425,7 +425,10 @@ class UltAnalysis (Ult, UStxt, Prompt):
             if dims==2:
                 imgtype = 'n2'
             elif dims==3:
-                imgtype = 'n3'
+                if rgb:
+                    imgtype = 'n2'
+                else:
+                    imgtype = 'n3'
             else:
                 raise ValueError("Images should be 2 or 3 dimensions.")
         else:
@@ -456,10 +459,12 @@ class UltPicture (UltAnalysis):
         img = self._inplace_img(img=img, inplace=inplace)
         return img
 
-    def flip (self, flip_direction=None, img=None, inplace=False):
+    def flip (self, flip_direction=None, img=None, inplace=False, rgb=False):
         def __flip_drct ( img, flip_direction ):
             num_dim = len(img.shape)
             mod_dim = num_dim - 2
+            if rgb:
+                mod_dim=0
             if mod_dim<0 or mod_dim>1:
                 raise ValueError('self.flip is implemented only for 2 or 3 dimensions.')
             ydim = 0 + mod_dim
@@ -478,7 +483,7 @@ class UltPicture (UltAnalysis):
                 else:
                     raise ValueError('Provide directions of flipping as "x", "y", or "xy".')
             return flip_direction
-        img = self._format_imgs(img=img)
+        img = self._format_imgs(img=img, rgb=rgb)
         drct = __flip_drct(img=img[0][0], flip_direction=flip_direction)
         img = [ [ np.flip(j, drct) for j in i ] for i in img ]
         img = self._finish_imgs(img=img)
@@ -499,19 +504,23 @@ class UltPicture (UltAnalysis):
         img = self._inplace_img(img=img, inplace=inplace)
         return img
 
-    def to_square (self, img=None, glbl=False, inplace=False):
-        img = self._format_imgs(img=img)
+    def to_square (self, img=None, glbl=False, inplace=False, rgb=False):
+        img = self._format_imgs(img=img, rgb=rgb)
 
-        def __squsize (img):
+        def __squsize (img, rgb=False):
             num_dim = len(img.shape)
-            xlen = img.shape[-1]
-            ylen = img.shape[-2]
+            if rgb:
+                xlen = img.shape[1]
+                ylen = img.shape[0]
+            else:
+                xlen = img.shape[-1]
+                ylen = img.shape[-2]
             bigger = ylen if ylen >= xlen else xlen
             squsize = (bigger, bigger)
             return squsize
 
-        def __resize_squ (img):
-            squsize = __squsize(img=img)
+        def __resize_squ (img, rgb=False):
+            squsize = __squsize(img=img, rgb=rgb)
             img = cv2.resize(src=img, dsize=squsize)
             return img
 
@@ -524,7 +533,7 @@ class UltPicture (UltAnalysis):
             img = [ [ cv2.resize(src=j, dsize=squsize) for j in i ] for i in img ]
 
         else:
-            img = [ [ __resize_squ(img=j) for j in i ] for i in img ]
+            img = [ [ __resize_squ(img=j, rgb=rgb) for j in i ] for i in img ]
         img = self._finish_imgs(img=img)
         img = self._inplace_img(img=img, inplace=inplace)
         return img
@@ -835,7 +844,7 @@ class UltPicture (UltAnalysis):
     def _fitted_values ( self, vect ):
         return Math.fitted_values(self, vect)
 
-    def fit_spline ( self, img, cores=1 ):
+    def fit_spline ( self, img, cores=1, inplace=False ):
         if cores != 1:
             pool = mp.Pool(cores)
             pks = pool.map(self._fitted_values, [img[:,i] for i in range(img.shape[1])])
@@ -900,10 +909,15 @@ class UltPicture (UltAnalysis):
         xy = { i:j['peak_poses'] for i,j in pks.items() }
         ftv = Math.fitted_values(self, vect=list(xy.values()), pred=list(xy.keys()), knots=10)
         ftv = ftv.round().astype(int)
-        return {'index':np.array(list(xy.keys())), 'fitted_values':ftv}
+        ftv_dict = {'index':np.array(list(xy.keys())), 'fitted_values':ftv}
+        if inplace:
+            self.spline_values = ftv_dict
+            ftv_dict = None
+        return ftv_dict
 
-    def fit_spline_img ( self, img, cores=1 ):
-        ftv = self.fit_spline(img=img, cores=cores)
+    def fit_spline_img ( self, img, ftv=None, cores=1 ):
+        if ftv is None:
+            ftv = self.fit_spline(img=img, cores=cores)
         yyy = ftv['fitted_values']
         xxx = ftv['index']
         img = img.astype('uint8')
@@ -912,6 +926,7 @@ class UltPicture (UltAnalysis):
             if not ypos is None:
                 img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
         return img
+
 
 
 
@@ -1134,7 +1149,15 @@ class UltDf (UltAnalysis):
                 fps = self.framespersec
             else:
                 raise AttributeError('fps (self.framespersec) not found.')
-        df['time'] = df['frame'] * (1/fps)
+
+        def __calctime (df, fps):
+            df['time'] = df['frame'] * (1/fps)
+            return df
+
+        if isinstance(df, list):
+            df = [ __calctime(i, fps) for i in df ]
+        else:
+            df = __calctime(df, fps)
         return df
 
     def normalize_vec (self, vec):
@@ -1238,7 +1261,13 @@ class UltDf (UltAnalysis):
         df = self._inplace_df(df=df, inplace=inplace)
         return df
 
-
+    def integrate_spline_values ( self, df, splval ):
+        df = self.__getdf(df=df)
+        splval['x'] = splval.pop('index')
+        splval['y_spline'] = splval.pop('fitted_values')
+        spl = pd.DataFrame(splval)
+        df = pd.merge(df, spl, on='x', how='left')
+        return df
 
 
 

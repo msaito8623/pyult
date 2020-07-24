@@ -5,6 +5,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.parse_args()
 import os
+import pandas as pd
 import pdb
 import subprocess
 import shutil
@@ -313,6 +314,7 @@ def ask_which_imgtype ():
         print('- WARNING: Following inputs are ignored.')
         print('--- {}'.format(ngs))
     return oks
+
 def change_img_shapes ( obj, imgtype, cores ):
     obj.raw = copy.deepcopy(obj.img)
     if imgtype is None:
@@ -325,6 +327,21 @@ def change_img_shapes ( obj, imgtype, cores ):
             obj.squ = obj.to_square(inplace=False)
         if 'fan' in imgtype:
             obj.fan = obj.fanshape(inplace=False, numvectors=obj.img.shape[-1], magnify=4, cores=cores, progressbar=True)
+
+    if hasattr(obj, 'splimg'):
+        obj.splraw = copy.deepcopy(obj.splimg)
+        if imgtype is None:
+            pass
+        elif 'all' in imgtype:
+            obj.splsqu = [ obj.to_square(img=i, inplace=False, rgb=True) for i in obj.splimg ]
+            obj.splfan = [ obj.fanshape(img=i, inplace=False, numvectors=obj.img.shape[-1], magnify=4, cores=cores, progressbar=True) for i in obj.splimg ]
+        else:
+            if 'squ' in imgtype:
+                obj.splsqu = [ obj.to_square(img=i, inplace=False, rgb=True) for i in obj.splimg ]
+            if 'fan' in imgtype:
+                obj.splfan = [ obj.fanshape(img=i, inplace=False, numvectors=obj.img.shape[-1], magnify=4, cores=cores, progressbar=True) for i in obj.splimg ]
+        delattr(obj, 'splimg')
+
     delattr(obj, 'img')
     return obj
 ### Change image shapes ###
@@ -375,8 +392,46 @@ def flip_local ( obj, flip_directions ):
             obj.squ = obj.flip(flip_directions, img=obj.squ, inplace=False)
         if hasattr(obj, 'fan'):
             obj.fan = obj.flip(flip_directions, img=obj.fan, inplace=False)
+        if hasattr(obj, 'splraw'):
+            obj.splraw = [ obj.flip(flip_directions, img=i, inplace=False, rgb=True) for i in obj.splraw ]
+        if hasattr(obj, 'splsqu'):
+            obj.splsqu = [ obj.flip(flip_directions, img=i, inplace=False, rgb=True) for i in obj.splsqu ]
+        if hasattr(obj, 'splfan'):
+            obj.splfan = [ obj.flip(flip_directions, img=i, inplace=False, rgb=True) for i in obj.splfan ]
     return obj
 ### Flip ###
+
+### Spline Fitting ###
+def ask_spline_fitting(boolean=False) :
+    print('\n##########')
+    print('- Do you want to fit spline curves? (yes or no)')
+    ok = False
+    while not ok:
+        spl = input()
+        if check_yes_or_no(spl):
+            ok = True
+    if boolean:
+        spl = yesno_to_bool(spl)
+    return spl
+
+def spline_local (obj, spl, cores) :
+    if spl:
+        def temp (i,cores):
+            import numpy as np
+            try:
+                print(i)
+                print(type(i))
+                print(i.shape)
+                res = obj.fit_spline(img=i, cores=cores)
+            except IndexError:
+                np.savetxt('./error_matrix.txt', i)
+                raise ValueError('ERROR!!! but I knew it.')
+                res = None
+            return res
+        obj.splval = [ temp(i,cores) for i in tqdm(obj.img,desc='Spline') ]
+        obj.splimg = [ obj.fit_spline_img(img=i,ftv=j,cores=cores) for i,j in zip(obj.img, obj.splval) ]
+    return obj
+### Spline Fitting ###
 
 ### Produce functions ###
 def produce_df ( obj, path_index ):
@@ -390,7 +445,9 @@ def produce_df ( obj, path_index ):
         alfiles = False
         print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
     fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
-    udf.df = udf.img_to_df(img=udf.raw, add_time=True)
+    udf.df = udf.img_to_df(img=udf.raw, add_time=True, combine=False)
+    udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
+    udf.df = pd.concat(udf.df, ignore_index=True)
     if alfiles:
         udf.df = udf.integrate_segments(path_p, path_w, df=udf.df, rmvnoise=True)
     opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
@@ -413,6 +470,19 @@ def produce_png ( obj, path_index ):
         for ind,i in enumerate(obj.fan):
             opath = '{dr}/{fn}_fan_{nm:0{wd}}.png'.format(dr=pic_dir, fn=fname, nm=ind, wd=numdigits)
             obj.save_img(path=opath, img=i)
+    if hasattr(obj, 'splraw'):
+        for ind,i in enumerate(obj.splraw):
+            opath = '{dr}/{fn}_raw_{nm:0{wd}}_splined.png'.format(dr=pic_dir, fn=fname, nm=ind, wd=numdigits)
+            obj.save_img(path=opath, img=i)
+    if hasattr(obj, 'splsqu'):
+        for ind,i in enumerate(obj.splsqu):
+            opath = '{dr}/{fn}_squ_{nm:0{wd}}_splined.png'.format(dr=pic_dir, fn=fname, nm=ind, wd=numdigits)
+            obj.save_img(path=opath, img=i)
+    if hasattr(obj, 'splfan'):
+        for ind,i in enumerate(obj.splfan):
+            opath = '{dr}/{fn}_fan_{nm:0{wd}}_splined.png'.format(dr=pic_dir, fn=fname, nm=ind, wd=numdigits)
+            obj.save_img(path=opath, img=i)
+    return None
 
 def produce_video ( obj, imgtype, videopath, audiopath, outpath ):
     if videopath == outpath:
@@ -445,10 +515,11 @@ def produce_avi ( obj, path_index ):
             pass
     return None
 
-def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores):
+def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl):
     obj = prepare_imgs(obj, indx)
     obj = crop_local(obj, crp)
     obj = reduce_resolution_local(obj, rsl)
+    obj = spline_local(obj, spl, cores)
     obj = change_img_shapes(obj, imgtype, cores)
     obj = flip_local(obj, flip_directions)
     if dfT:
@@ -479,8 +550,11 @@ def main ( obj ) :
         crp = where_to_crop()
         rsl = is_resol_reduc_needed()
         flip_directions = determine_flip_directions()
+        spl = ask_spline_fitting(boolean=True)
+        if spl and not any([picT, vidT]):
+            cores = ask_cores()
         for i in tqdm(range(len(obj.paths['ult'])), desc='Main'):
-            produce_wrapper(obj, i, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores)
+            produce_wrapper(obj, i, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl)
     return None
 ### Main functions ###
 
