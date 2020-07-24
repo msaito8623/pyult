@@ -652,8 +652,16 @@ class UltPicture (UltAnalysis):
                 img = img[:,unique_column!=1,:]
             return img
 
+        img = self._getimg(img=img)
         nec_attrs = [ 'angle', 'zerooffset', 'pixpervector', 'numvectors' ]
-        param_ok = all([ hasattr(self, i) for i in nec_attrs ]) if not force_general_param else False
+
+        if force_general_param:
+            param_ok = False
+        else:
+            if all([ hasattr(self, i) for i in nec_attrs ]):
+                param_ok = all([ not (getattr(self, i) is None) for i in nec_attrs ])
+            else:
+                param_ok = False
 
         if param_ok:
             angle = self.angle

@@ -11,8 +11,7 @@ import numpy as np
 import pyper
 from . import pyult
 
-
-def fitted_values ( self, vect, pred=None, knots=30, png_out=False, outpath=None, lwd=1, col=('black','red'), xlab='', ylab=''):
+def fitted_values ( vect, pred=None, knots=30, png_out=False, outpath=None, lwd=1, col=('black','red'), xlab='', ylab=''):
     r = pyper.R()
     r('ready_mgcv = require(mgcv)')
     ready_mgcv = r('ready_mgcv').split(' ')[1].strip()
@@ -48,7 +47,7 @@ def fitted_values ( self, vect, pred=None, knots=30, png_out=False, outpath=None
         raise ImportError('You need to install mgcv in R first.')
     return ftv
 
-def deriv_discrete ( self, vect ):
+def deriv_discrete ( vect ):
     def __deriv ( vals ):
         if len(vals)!=3:
             raise ValueError('Length does not equals to 3.')
@@ -60,12 +59,12 @@ def deriv_discrete ( self, vect ):
         drvs = np.array(drvs)
     return drvs
 
-def peaks ( self, vect, howmany=3 ):
+def peaks ( vect, howmany=3 ):
     def __cross_zero ( nums ):
         return (nums[0]>0 and nums[1]<0) or (nums[0]<0 and nums[1]>0)
     f0 = vect
-    d1 = deriv_discrete(self, f0)
-    d2 = deriv_discrete(self, d1)
+    d1 = deriv_discrete(f0)
+    d2 = deriv_discrete(d1)
     d1_0 = np.where(d1==0)[0]
     if len(d1_0)==0:
         aaa = [ __cross_zero(d1[i:(i+2)]) for i in range(len(d1)-1) ]
@@ -89,16 +88,16 @@ def peaks ( self, vect, howmany=3 ):
     peak_ratio = aaa[0]/aaa[1]
     return {'peak_poses':peak_poses, 'peak_vals':peak_vals, 'peak_ratio':peak_ratio}
 
-def _fitted_values ( self, vect ):
-    return fitted_values(self, vect)
+def _fitted_values ( vect ):
+    return fitted_values(vect)
 
-def fit_spline ( self, img, cores=1, inplace=False ):
+def fit_spline ( img, cores=1, inplace=False ):
     if cores != 1:
         pool = mp.Pool(cores)
-        pks = pool.map(self._fitted_values, [img[:,i] for i in range(img.shape[1])])
+        pks = pool.map(_fitted_values, [img[:,i] for i in range(img.shape[1])])
     else:
-        pks = [ fitted_values(self, img[:,i]) for i in range(img.shape[1])]
-    pks = [ self.peaks(i) for i in pks ]
+        pks = [ fitted_values(img[:,i]) for i in range(img.shape[1])]
+    pks = [ peaks(i) for i in pks ]
     pks = { i:j for i,j in enumerate(pks) }
 
     aaa = len(pks)//4
@@ -155,17 +154,17 @@ def fit_spline ( self, img, cores=1, inplace=False ):
             cval = pks[i]['peak_vals']
 
     xy = { i:j['peak_poses'] for i,j in pks.items() }
-    ftv = fitted_values(self, vect=list(xy.values()), pred=list(xy.keys()), knots=10)
+    ftv = fitted_values(vect=list(xy.values()), pred=list(xy.keys()), knots=10)
     ftv = ftv.round().astype(int)
     ftv_dict = {'index':np.array(list(xy.keys())), 'fitted_values':ftv}
     if inplace:
-        self.spline_values = ftv_dict
+        spline_values = ftv_dict
         ftv_dict = None
     return ftv_dict
 
-def fit_spline_img ( self, img, ftv=None, cores=1 ):
+def fit_spline_img ( img, ftv=None, cores=1 ):
     if ftv is None:
-        ftv = self.fit_spline(img=img, cores=cores)
+        ftv = fit_spline(img=img, cores=cores)
     yyy = ftv['fitted_values']
     xxx = ftv['index']
     img = img.astype('uint8')
@@ -174,5 +173,4 @@ def fit_spline_img ( self, img, ftv=None, cores=1 ):
         if not ypos is None:
             img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
     return img
-
 
