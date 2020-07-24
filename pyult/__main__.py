@@ -416,19 +416,7 @@ def ask_spline_fitting(boolean=False) :
 
 def spline_local (obj, spl, cores) :
     if spl:
-        def temp (i,cores):
-            import numpy as np
-            try:
-                print(i)
-                print(type(i))
-                print(i.shape)
-                res = obj.fit_spline(img=i, cores=cores)
-            except IndexError:
-                np.savetxt('./error_matrix.txt', i)
-                raise ValueError('ERROR!!! but I knew it.')
-                res = None
-            return res
-        obj.splval = [ temp(i,cores) for i in tqdm(obj.img,desc='Spline') ]
+        obj.splval = [ obj.fit_spline(img=i, cores=cores) for i in tqdm(obj.img,desc='Spline') ]
         obj.splimg = [ obj.fit_spline_img(img=i,ftv=j,cores=cores) for i,j in zip(obj.img, obj.splval) ]
     return obj
 ### Spline Fitting ###
@@ -446,7 +434,8 @@ def produce_df ( obj, path_index ):
         print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
     fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
     udf.df = udf.img_to_df(img=udf.raw, add_time=True, combine=False)
-    udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
+    if hasattr(udf, 'splval'):
+        udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
     udf.df = pd.concat(udf.df, ignore_index=True)
     if alfiles:
         udf.df = udf.integrate_segments(path_p, path_w, df=udf.df, rmvnoise=True)
@@ -550,7 +539,8 @@ def main ( obj ) :
         crp = where_to_crop()
         rsl = is_resol_reduc_needed()
         flip_directions = determine_flip_directions()
-        spl = ask_spline_fitting(boolean=True)
+        # spl = ask_spline_fitting(boolean=True) # Spline-fitting functionality is turned off temporarily
+        spl = False
         if spl and not any([picT, vidT]):
             cores = ask_cores()
         for i in tqdm(range(len(obj.paths['ult'])), desc='Main'):

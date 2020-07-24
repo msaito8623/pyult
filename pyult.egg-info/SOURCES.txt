@@ -6,6 +6,7 @@ setup.py
 pyult/__init__.py
 pyult/__main__.py
 pyult/pyult.py
+pyult/splfit.py
 pyult.egg-info/PKG-INFO
 pyult.egg-info/SOURCES.txt
 pyult.egg-info/dependency_links.txt
