@@ -965,7 +965,7 @@ class Alignment (Files):
         subprocess.call(cmd)
         return None
 
-    def textgrid_to_alignfiles ( self, path, encoding='utf16' ):
+    def textgrid_to_alignfiles ( self, path, encoding='utf16', return_outpaths=False ):
         def _temp ( xxx ):
             xxx = np.array(xxx)
             xxx = xxx[3:]
@@ -1015,7 +1015,11 @@ class Alignment (Files):
             f.writelines(segments)
         with open(opathw, 'w') as f:
             f.writelines(words)
-        return None
+        if return_outpaths:
+            res = {'phoneswithQ':opaths, 'words':opathw}
+        else:
+            res = None
+        return res
 
             
 

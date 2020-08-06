@@ -435,8 +435,16 @@ def produce_df ( obj, path_index ):
         path_w = udf.paths['words'][path_index]
         alfiles = True
     except IndexError:
-        alfiles = False
-        print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
+        try:
+            path_t = udf.paths['textgrid'][path_index]
+            aln = pyult.Alignment()
+            opaths = aln.textgrid_to_alignfiles(path_t, return_outpaths=True)
+            path_p = opaths['phoneswithQ']
+            path_w = opaths['words']
+            alfiles = True
+        except IndexError:
+            alfiles = False
+            print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
     fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
     udf.df = udf.img_to_df(img=udf.raw, add_time=True, combine=False)
     if hasattr(udf, 'splval'):
@@ -555,7 +563,7 @@ def main ( obj, path ) :
 
 ### Body ###
 if __name__ == '__main__':
-    upc = pyult.UltPicture()
-    main(upc, args.path)
+    obj = pyult.UltPicture()
+    main(obj, args.path)
 ###
 
