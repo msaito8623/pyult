@@ -6,6 +6,7 @@ import cv2
 from scipy import ndimage
 import math
 import os
+import pathlib
 import subprocess
 import soundfile as sf
 import pyper
@@ -963,6 +964,62 @@ class Alignment (Files):
         cmd = ['sox', audiopath, outpath, 'trim', str(ff), 'rate', '16000']
         subprocess.call(cmd)
         return None
+
+    def textgrid_to_alignfiles ( self, path, encoding='utf16' ):
+        def _temp ( xxx ):
+            xxx = np.array(xxx)
+            xxx = xxx[3:]
+            if len(xxx)%3!=0:
+                raise ValueError('Something is wrong in the format of the input textgrid.')
+            xmins = np.arange(0, len(xxx), 3)
+            xmaxs = np.arange(1, len(xxx), 3)
+            texts = np.arange(2, len(xxx), 3)
+            xmins = xxx[xmins]
+            xmaxs = xxx[xmaxs]
+            texts = xxx[texts]
+            xmins = [ '{:8.6f}'.format(float(i)) for i in xmins ]
+            xmaxs = [ '{:8.6f}'.format(float(i)) for i in xmaxs ]
+            texts = [ i.strip('\"') for i in texts ]
+            df = pd.DataFrame({'xmin':xmins, 'xmax':xmaxs, 'text':texts})
+            return df
+        with open(path, 'r', encoding=encoding) as f:
+            lines = f.readlines()
+        lines = np.array(lines)
+        keys = ['segments', 'words', 'xmin', 'xmax', 'text']
+        pos = []
+        for i in keys:
+            pos = pos + [ j for j,k in enumerate(lines) if i in k ]
+        pos = sorted(list(set(pos)))
+        lines = lines[pos]
+        pos = [ i for i,j in enumerate(lines) if ('segments' in j) or ('words' in j) ]
+        if len(pos)!=2 :
+            print('WARNING: Multiple lines matched "segments" and "words" in a textgrid file.')
+        segments = lines[pos[0]:pos[1]]
+        words = lines[pos[1]:]
+        segments = [ i.strip() for i in segments ]
+        words = [ i.strip() for i in words ]
+        segments = [ i.split(' = ')[1] for i in segments ]
+        words = [ i.split(' = ')[1] for i in words ]
+        segments = _temp(segments)
+        words = _temp(words)
+        segments = [ i + ' 000 ' + j for i,j in zip(segments.xmax, segments.text) ]
+        words = [ i + ' 000 ' + j for i,j in zip(words.xmax, words.text) ]
+        segments = ['#'] + segments
+        words = ['#'] + words
+        segments = [ i + '\n' for i in segments ]
+        words = [ i + '\n' for i in words ]
+        path = pathlib.Path(path)
+        opaths = str(path.parent) + '/' + path.stem + '.phoneswithQ'
+        opathw = str(path.parent) + '/' + path.stem + '.words'
+        with open(opaths, 'w') as f:
+            f.writelines(segments)
+        with open(opathw, 'w') as f:
+            f.writelines(words)
+        return None
+
+            
+
+
 
 
 class UltDf (UltAnalysis):

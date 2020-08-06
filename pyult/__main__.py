@@ -1,15 +1,14 @@
-import pyult
-upc = pyult.UltPicture()
-ufl = pyult.Files()
 import argparse
 parser = argparse.ArgumentParser()
-parser.parse_args()
+parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
+args = parser.parse_args()
+import copy
 import os
 import pandas as pd
 import pdb
-import subprocess
+import pyult.pyult as pyult
 import shutil
-import copy
+import subprocess
 from tqdm import tqdm
 
 
@@ -71,20 +70,25 @@ def create_dir ( obj, dirname ):
 ### Generic ###
 
 ### Initiation ###
-def ask_target_dir (obj):
-    print('\n##########')
-    print('- Give me a file path or a directory path which has all the necessary files.')
+def ask_target_dir (obj, path):
+    if path is None:
+        print('\n##########')
+        print('- Give me a file path or a directory path which has all the necessary files.')
+        tdir = input()
+    else:
+        tdir = path
     ok = False
     while not ok:
-        tdir = input()
         if obj.exist(tdir):
             obj.set_paths(tdir)
             if obj.is_all_set(exclude_empty_list=True):
                 ok = True
             else:
                 print('- The directory specified does not have all necessary files ready. Please try again.')
+                tdir = input()
         else:
             print('- The path specified does not exist. Please try again.')
+            tdir = input()
     return obj
 
 def ask_whattodo ():
@@ -174,6 +178,7 @@ def ask_aligner_home ():
     ok = False
     while not ok:
         alhome = input()
+        ufl = pyult.Files()
         if ufl.exist(alhome):
             ok = True
         else:
@@ -521,8 +526,8 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj ) :
-    obj = ask_target_dir(obj)
+def main ( obj, path ) :
+    obj = ask_target_dir(obj, path)
     whattodo = ask_whattodo()
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
     if tgT:
@@ -550,127 +555,7 @@ def main ( obj ) :
 
 ### Body ###
 if __name__ == '__main__':
-    main(upc)
+    upc = pyult.UltPicture()
+    main(upc, args.path)
 ###
 
-
-### ARCHIVES ###
-# def which_img_type ():
-#     print('\n##########')
-#     print('- What shape of pictures do you want?')
-#     print('--- Raw (rectangle) => raw')
-#     print('--- Square          => squ')
-#     print('--- Fan-shape       => fan')
-#     print('--- All             => all')
-#     opts = [ 'raw', 'squ', 'fan', 'all' ]
-#     ok = False
-#     while not ok:
-#         inpt = input()
-#         if inpt in opts:
-#             ok = True
-#         else:
-#             print('- Please choose out of the followings:')
-#             print('--- {}'.format(', '.join(opts)))
-#     return inpt
-# 
-# def produce_pictures ( obj, picture, video, imgtype, flip_directions, wheretocrop, resolreduc, cores):
-#     print('\n##########')
-#     print('Producing pictures...')
-#     for i in tqdm(range(len(obj.paths['ustxt']))):
-#         obj = prepare_imgs(obj, i)
-#         if not wheretocrop is None:
-#             obj.crop(wheretocrop, inplace=True)
-#         if not resolreduc is None:
-#             obj.reduce_resolution(every_y=resolreduc, inplace=True)
-#         obj = change_img_shapes(obj, imgtype, cores)
-#         if not flip_directions is None:
-#             obj = flip_wrapper(obj, flip_directions)
-#         fname = obj.name(obj.paths['txt'][i], drop_extension=True)
-#         if video:
-#             vid_dir = create_dir(obj, 'Videos')
-#             apath = obj.paths['wav'][i]
-#             vpath = '{}/{}_temp.avi'.format(vid_dir, fname)
-#             opath = '{}/{}.avi'.format(vid_dir, fname)
-#             produce_video(obj, vpath, apath, opath)
-#         if picture:
-#             pic_dir = create_dir(obj, 'Picture')
-#             if hasattr(obj, 'raw'):
-#                 save_pics(obj, 'raw', pic_dir, fname)
-#             if hasattr(obj, 'squ'):
-#                 save_pics(obj, 'squ', pic_dir, fname)
-#             if hasattr(obj, 'fan'):
-#                 save_pics(obj, 'fan', pic_dir, fname)
-#     return None
-# 
-# def produce_df ( obj, pr_tg=None, rmvnoise=False ):
-#     if pr_tg is None:
-#         print('\n##########')
-#         print('- Do you want to run Aligner (yes or no)')
-#         print('--- You can integrate alignment information in the dataframe.')
-#         print('--- Type no, if...')
-#         print('      you do not want that, or...')
-#         print('      you already have those files, e.g. ***.phoneswithQ')
-#         pr_tg = input()
-# 
-#     if not pr_tg in ['yes', 'no']:
-#         raise ValueError('yes or no is acceptable.')
-#     if pr_tg == 'yes':
-#         produce_textgrids(obj)
-# 
-#     df_dir = create_dir(obj, 'Dataframes')
-#     obj.set_paths(obj.wdir)
-#     print('\n##########')
-#     print('Producing dataframes...')
-#     for i in tqdm(range(len(obj.paths['ustxt']))):
-#         obj = prepare_imgs(obj, i)
-#         udf = pyult.UltDf(obj)
-#         udf.img_to_df(inplace=True, add_time=True)
-#         try:
-#             path_p = udf.paths['phoneswithQ'][i]
-#             path_w = udf.paths['words'][i]
-#             udf.integrate_segments(path_p, path_w, inplace=True, rmvnoise=rmvnoise)
-#         except IndexError:
-#             pass
-#         fname = udf.name(udf.paths['txt'][i], drop_extension=True)
-#         opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
-#         udf.save_dataframe(opath)
-#     return None
-# 
-# def ask_rmv_noise ():
-#     print('\n##########')
-#     print("- Do you want to remove marginal segment/word rows, e.g. '<P>', '_p:_', '' (empty)?")
-#     print("- yes or no is acceptable")
-#     isok = False
-#     while not isok:
-#         rmvnoise = input()
-#         isok = check_yes_or_no(rmvnoise)
-#     return yesno_boolean(rmvnoise)
-# 
-# def yesno_boolean ( yesno ):
-#     isyes = yesno.lower() in ['yes','y']
-#     return isyes
-# 
-# picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
-# 
-# if picT or vidT:
-#     whichimgtype = which_img_type()
-#     flip_directions = determine_flip_directions()
-#     wheretocrop = where_to_crop()
-#     resolreduc = is_resol_reduc_needed()
-#     cores = determine_cores(whichimgtype)
-#     produce_pictures(upc, picT, vidT, whichimgtype, flip_directions, wheretocrop, resolreduc, cores)
-# 
-# if tgT: produce_textgrids(upc)
-# 
-# if dfT:
-#     rmvnoise = ask_rmv_noise()
-# 
-# if dfT and tgT:
-#     produce_df(upc, pr_tg='no', rmvnoise=rmvnoise)
-# elif dfT and not tgT:
-#     produce_df(upc, rmvnoise=rmvnoise)
-# 
-# if not any([picT,vidT,dfT,tgT]):
-#     errtxt = 'pic, vid, df, tg, or a combination of them is acceptable.\n'
-#     errtxt = errtxt + 'You typed {}'.format(whattodo)
-#     raise ValueError(errtxt)
