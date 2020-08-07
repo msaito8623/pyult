@@ -1209,9 +1209,12 @@ class UltDf (UltAnalysis):
     def rmv_noise ( self, colnames=['segment','word'], df=None, noise=None, inplace=False):
         df = self.__getdf(df=df)
         if noise is None:
-            noise = ['_p:_','<P>','']
+            noise = ['_p:_','<P>','_NOISE_','<NOISE>']
         for i in colnames:
-            df = df.loc[~df[i].isin(noise),]
+            pos1 = df[i].isin(noise)
+            pos2 = df[i].isna() 
+            pos3 = pd.Series([ j=='' for j in df[i] ])
+            df = df.loc[~((pos1|pos2)|pos3),:]
         df = self._inplace_df(df=df, inplace=inplace)
         return df
 

@@ -452,6 +452,7 @@ def produce_df ( obj, path_index ):
     udf.df = pd.concat(udf.df, ignore_index=True)
     if alfiles:
         udf.df = udf.integrate_segments(path_p, path_w, df=udf.df, rmvnoise=True)
+    udf.df = udf.rmv_noise(df=udf.df)
     opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
     udf.save_dataframe(opath, df=udf.df)
     return None
