@@ -445,7 +445,6 @@ def produce_df ( obj, path_index ):
         except IndexError:
             alfiles = False
             print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
-    fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
     udf.df = udf.img_to_df(img=udf.raw, add_time=True, combine=False)
     if hasattr(udf, 'splval'):
         udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
@@ -453,6 +452,8 @@ def produce_df ( obj, path_index ):
     if alfiles:
         udf.df = udf.integrate_segments(path_p, path_w, df=udf.df, rmvnoise=True)
     udf.df = udf.rmv_noise(df=udf.df)
+    fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
+    udf.df['filename'] = fname
     opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
     udf.save_dataframe(opath, df=udf.df)
     return None

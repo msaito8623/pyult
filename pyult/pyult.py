@@ -173,7 +173,7 @@ class UltFiles (Files):
 
         def clean_name ( nm ):
             nm = nm.split('.')
-            tgts = ['_Track[0-9]+$', 'US$']
+            tgts = ['_Track[0-9]+$', 'US$', '_corrected']
             for i in tgts:
                 nm[0] = re.sub(i, '', nm[0])
             return '.'.join(nm)
