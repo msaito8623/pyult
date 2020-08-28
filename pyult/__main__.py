@@ -2,6 +2,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
 parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
+parser.add_argument('-c', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
 args = parser.parse_args()
 import copy
 import os
@@ -214,44 +215,47 @@ def prepare_imgs ( obj, ind ):
 ###
 
 ### Cropping ###
-def ask_crop_ornot ():
-    print('\n##########')
-    print('- Do you want to crop pictures? (yes or no)')
-    ok = False
-    while not ok:
-        cropornot = input()
-        if check_yes_or_no(cropornot):
-            ok = True
-    return cropornot
+def where_to_crop (crop_points):
+    def ask_crop_ornot ():
+        print('\n##########')
+        print('- Do you want to crop pictures? (yes or no)')
+        ok = False
+        while not ok:
+            cropornot = input()
+            if check_yes_or_no(cropornot):
+                ok = True
+        return cropornot
+    def print_texts ():
+        print('\n##########')
+        print('- Where to crop?')
+        print('--- Specify as a 4-element tuple, i.e. (xmin, xmax, ymin, ymax).')
+        print('--- Please type None if you want to refer to the ends of x/y-axes.')
+        print('--- E.g. "You want to cut off only the first 10 pixels along x-axis"')
+        print('      ==> (10, None, None, None)')
+        return None
 
-def ask_wheretocrop ():
-    print('\n##########')
-    print('- Where to crop?')
-    print('--- Specify as a 4-element tuple, i.e. (xmin, xmax, ymin, ymax).')
-    print('--- Please type None if you want to refer to the ends of x/y-axes.')
-    print('--- E.g. "You want to cut off only the first 10 pixels along x-axis"')
-    print('      ==> (10, None, None, None)')
-    ok = False
-    while not ok:
-        crp = input()
-        tgt = [ ' ', '(', ')' ]
-        for i in tgt:
-            crp = crp.replace(i, '')
-        crp = crp.split(',')
-        try:
-            crp = tuple(map(lambda x: int(x) if x!='None' else None, crp))
-            ok = True
-        except ValueError:
-            print('- Input must follow the following format: e.g. (10, None, 20, None)')
-            print('- Please try again...')
-    return crp
-        
-def where_to_crop ():
-    cropornot = ask_crop_ornot()
-    crp = yesno_to_bool(cropornot)
-    if crp:
-        crp = ask_wheretocrop()
-    return crp
+    if crop_points is None:
+        wanna_crop = yesno_to_bool(ask_crop_ornot())
+        if wanna_crop:
+            print_texts()
+            crop_points = input()
+        else:
+            crop_points = False
+    if crop_points:
+        ok = False
+        while not ok:
+            tgt = [ ' ', '(', ')' ]
+            for i in tgt:
+                crop_points = crop_points.replace(i, '')
+            crop_points = crop_points.split(',')
+            try:
+                crop_points = tuple(map(lambda x: int(x) if x!='None' else None, crop_points))
+                ok = True
+            except ValueError:
+                print('- Cropping points must follow the following format: e.g. (10, None, 20, None)')
+                print('- Please try again...')
+                crop_points = input()
+    return crop_points
 
 def crop_local ( obj, crp ):
     if crp:
@@ -545,7 +549,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task ) :
+def main ( obj, path, task, crop ) :
     obj = ask_target_dir(obj, path)
     whattodo = ask_whattodo(task)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -560,7 +564,7 @@ def main ( obj, path, task ) :
         else:
             imgtype = None
             cores = 1
-        crp = where_to_crop()
+        crp = where_to_crop(crop)
         rsl = is_resol_reduc_needed()
         flip_directions = determine_flip_directions()
         # spl = ask_spline_fitting(boolean=True) # Spline-fitting functionality is turned off temporarily
@@ -575,6 +579,6 @@ def main ( obj, path, task ) :
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task)
+    main(obj, args.path, args.task, args.crop)
 ###
 
