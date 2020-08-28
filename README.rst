@@ -1,8 +1,8 @@
 ===============================================
-Pyuld - Preprocessing for ultrasound data exported by Articulate Assistant Advanced (AAA) in Python
+pyult - Preprocessing utilities for ultrasound data in Python
 ===============================================
 
-*pyult* helps to preprocess ultrasound data exported by AAA. With *pyult*, you can produce images, videos, and dataframes in the long format.
+*pyult* helps to preprocess ultrasound data exported by Articulate Assistant Advanced (AAA). With *pyult*, you can produce images, videos, and dataframes in the long format.
 
 
 Installation
