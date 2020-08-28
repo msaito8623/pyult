@@ -3,6 +3,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
 parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
 parser.add_argument('-c', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
+parser.add_argument('-r', '--resolution', help='How much to reduce resolution along y-axis. For example, 3 takes every 3rd pixel along y-axis in each frame.')
 args = parser.parse_args()
 import copy
 import os
@@ -264,39 +265,43 @@ def crop_local ( obj, crp ):
 ### Cropping ###
 
 ### Reduce Resolution ###
-def ask_reduce_resolution_ornot ():
-    print('\n##########')
-    print('- Do you want to reduce resolution of y-axis? (yes or no)')
-    print('(Because ultasound pictures have much more information along y-axis than x-axis, it might not hurt to take every n-th pixel along y-axis to reduce data size.)')
-    ok = False
-    while not ok:
-        resolreduc = input()
-        if check_yes_or_no(resolreduc):
-            ok = True
-    return resolreduc
+def is_resol_reduc_needed (resol):
+    def ask_reduce_resolution_ornot ():
+        print('\n##########')
+        print('- Do you want to reduce resolution of y-axis? (yes or no)')
+        # print('(Because ultasound pictures have much more information along y-axis than x-axis, it might not hurt to take every n-th pixel along y-axis to reduce data size.)')
+        ok = False
+        while not ok:
+            resolreduc = input()
+            if check_yes_or_no(resolreduc):
+                ok = True
+        return resolreduc
 
-def ask_howmuchreduce ():
-    print('\n##########')
-    print('- How much to reduce?')
-    print('--- E.g. 3')
-    print('------> meaning you take every 3rd pixel along y-axis')
-    print('------> leading to approximately 1/3 of the original data size.')
-    ok = False
-    while not ok:
-        nth = input()
-        try:
-            nth = int(nth)
-            ok = True
-        except ValueError:
-            print('- Only integers are acceptable. Please try again...')
-    return nth
-        
-def is_resol_reduc_needed ():
-    rsl = ask_reduce_resolution_ornot()
-    rsl = yesno_to_bool(rsl)
-    if rsl:
-        rsl = ask_howmuchreduce()
-    return rsl
+    def print_texts ():
+        print('\n##########')
+        print('- How much to reduce?')
+        print('--- E.g. 3')
+        print('------> meaning you take every 3rd pixel along y-axis')
+        print('------> leading to approximately 1/3 of the original data size.')
+        return None
+    
+    if resol is None:
+        wanna_reduce_resol = yesno_to_bool(ask_reduce_resolution_ornot())
+        if wanna_reduce_resol:
+            print_texts()
+            resol = input()
+        else:
+            resol = False
+    if resol:
+        ok = False
+        while not ok:
+            try:
+                resol = int(resol)
+                ok = True
+            except ValueError:
+                print('- Only integers are acceptable for the degree of resolution-reduction. Please try again...')
+                resol = input()
+    return resol
 
 def reduce_resolution_local ( obj, rsl ):
     if rsl:
@@ -549,7 +554,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, crop ) :
+def main ( obj, path, task, crop, resol ) :
     obj = ask_target_dir(obj, path)
     whattodo = ask_whattodo(task)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -565,7 +570,7 @@ def main ( obj, path, task, crop ) :
             imgtype = None
             cores = 1
         crp = where_to_crop(crop)
-        rsl = is_resol_reduc_needed()
+        rsl = is_resol_reduc_needed(resol)
         flip_directions = determine_flip_directions()
         # spl = ask_spline_fitting(boolean=True) # Spline-fitting functionality is turned off temporarily
         spl = False
@@ -579,6 +584,6 @@ def main ( obj, path, task, crop ) :
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.crop)
+    main(obj, args.path, args.task, args.crop, args.resolution)
 ###
 
