@@ -4,6 +4,8 @@ parser.add_argument('-p', '--path', help='Path to a directory, which should have
 parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
 parser.add_argument('-c', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
 parser.add_argument('-r', '--resolution', help='How much to reduce resolution along y-axis. For example, 3 takes every 3rd pixel along y-axis in each frame.')
+parser.add_argument('-x', '--flipx', action='store_true', help='If provided, each image is flipped horizontally.')
+parser.add_argument('-y', '--flipy', action='store_true', help='If provided, each image is flipped vertically.')
 args = parser.parse_args()
 import copy
 import os
@@ -370,41 +372,41 @@ def change_img_shapes ( obj, imgtype, cores ):
 ### Change image shapes ###
 
 ### Flip ###
-def ask_flip ( vertical=False ):
-    if vertical:
-        direction = 'vertically'
-    else:
-        direction = 'horizontally'
-    print('\n##########')
-    print('- Do you want to flip pictures {}? (yes or no)'.format(direction))
-    opts = [ 'yes', 'no', 'y', 'n']
-    ok = False
-    while not ok:
-        xyflip = input().lower()
-        if xyflip in opts:
-            ok = True
+def determine_flip_directions (flipx, flipy):
+    def ask_flip ( vertical=False ):
+        if vertical:
+            direction = 'vertically'
         else:
-            print('- Please choose out of the followings:')
-            print('--- {}'.format(', '.join(opts)))
-    return xyflip
+            direction = 'horizontally'
+        print('\n##########')
+        print('- Do you want to flip pictures {}? (yes or no)'.format(direction))
+        opts = [ 'yes', 'no', 'y', 'n']
+        ok = False
+        while not ok:
+            xyflip = input().lower()
+            if xyflip in opts:
+                ok = True
+            else:
+                print('- Please choose out of the followings:')
+                print('--- {}'.format(', '.join(opts)))
+        xyflip = yesno_to_bool(xyflip)
+        return xyflip
+    def to_flags ( xflip, yflip ):
+        if xflip and yflip:
+            flp = 'xy'
+        elif xflip and not yflip:
+            flp = 'x'
+        elif not xflip and yflip:
+            flp = 'y'
+        else:
+            flp = False
+        return flp
 
-def ask_flip_to_flags ( xflip, yflip ):
-    xxx = xflip in ['yes','y']
-    yyy = yflip in ['yes','y']
-    if xxx and yyy:
-        flp = 'xy'
-    elif xxx and not yyy:
-        flp = 'x'
-    elif not xxx and yyy:
-        flp = 'y'
-    else:
-        flp = False
-    return flp
-
-def determine_flip_directions ():
-    xflip = ask_flip(vertical=False)
-    yflip = ask_flip(vertical=True)
-    flp = ask_flip_to_flags(xflip, yflip)
+    if not flipx:
+        flipx = ask_flip(vertical=False)
+    if not flipy:
+        flipy= ask_flip(vertical=True)
+    flp = to_flags(flipx, flipy)
     return flp
 
 def flip_local ( obj, flip_directions ):
@@ -554,7 +556,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, crop, resol ) :
+def main ( obj, path, task, crop, resol, flipx, flipy ) :
     obj = ask_target_dir(obj, path)
     whattodo = ask_whattodo(task)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -571,7 +573,7 @@ def main ( obj, path, task, crop, resol ) :
             cores = 1
         crp = where_to_crop(crop)
         rsl = is_resol_reduc_needed(resol)
-        flip_directions = determine_flip_directions()
+        flip_directions = determine_flip_directions(flipx, flipy)
         # spl = ask_spline_fitting(boolean=True) # Spline-fitting functionality is turned off temporarily
         spl = False
         if spl and not any([picT, vidT]):
@@ -584,6 +586,6 @@ def main ( obj, path, task, crop, resol ) :
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.crop, args.resolution)
+    main(obj, args.path, args.task, args.crop, args.resolution, args.flipx, args.flipy)
 ###
 
