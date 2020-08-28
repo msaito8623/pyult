@@ -2,10 +2,11 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
 parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
-parser.add_argument('-c', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
+parser.add_argument('-cr', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
 parser.add_argument('-r', '--resolution', help='How much to reduce resolution along y-axis. For example, 3 takes every 3rd pixel along y-axis in each frame.')
 parser.add_argument('-x', '--flipx', action='store_true', help='If provided, each image is flipped horizontally.')
 parser.add_argument('-y', '--flipy', action='store_true', help='If provided, each image is flipped vertically.')
+parser.add_argument('-cb', '--combine', action='store_true', help='If provided, output dataframes will be combined into a single gz file. Otherwise, dataframes are produced for each recording.')
 args = parser.parse_args()
 import copy
 import os
@@ -447,7 +448,7 @@ def spline_local (obj, spl, cores) :
 ### Spline Fitting ###
 
 ### Produce functions ###
-def produce_df ( obj, path_index ):
+def produce_df ( obj, path_index, combine ):
     df_dir = create_dir(obj, 'Dataframes')
     udf = pyult.UltDf(obj)
     try:
@@ -474,8 +475,15 @@ def produce_df ( obj, path_index ):
     udf.df = udf.rmv_noise(df=udf.df)
     fname = udf.name(udf.paths['ult'][path_index], drop_extension=True)
     udf.df['filename'] = fname
-    opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
-    udf.save_dataframe(opath, df=udf.df)
+    if combine:
+        opath = '{dr}/combined.gz'.format(dr=df_dir)
+        if path_index==0:
+            dummy = pd.DataFrame(columns=udf.df.columns)
+            udf.save_dataframe(opath, df=dummy, mode='w')
+        udf.save_dataframe(opath, df=udf.df, mode='a', header=False)
+    else:
+        opath = '{dr}/{fn}.gz'.format(dr=df_dir, fn=fname)
+        udf.save_dataframe(opath, df=udf.df)
     return None
 
 def produce_png ( obj, path_index ):
@@ -539,7 +547,7 @@ def produce_avi ( obj, path_index ):
             pass
     return None
 
-def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl):
+def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl, combine):
     obj = prepare_imgs(obj, indx)
     obj = crop_local(obj, crp)
     obj = reduce_resolution_local(obj, rsl)
@@ -547,7 +555,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
     obj = change_img_shapes(obj, imgtype, cores)
     obj = flip_local(obj, flip_directions)
     if dfT:
-        produce_df(obj, indx)
+        produce_df(obj, indx, combine)
     if picT:
         produce_png(obj, indx)
     if vidT:
@@ -556,7 +564,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, crop, resol, flipx, flipy ) :
+def main ( obj, path, task, crop, resol, flipx, flipy, combine ) :
     obj = ask_target_dir(obj, path)
     whattodo = ask_whattodo(task)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -579,13 +587,13 @@ def main ( obj, path, task, crop, resol, flipx, flipy ) :
         if spl and not any([picT, vidT]):
             cores = ask_cores()
         for i in tqdm(range(len(obj.paths['ult'])), desc='Main'):
-            produce_wrapper(obj, i, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl)
+            produce_wrapper(obj, i, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl, combine)
     return None
 ### Main functions ###
 
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.crop, args.resolution, args.flipx, args.flipy)
+    main(obj, args.path, args.task, args.crop, args.resolution, args.flipx, args.flipy, args.combine)
 ###
 

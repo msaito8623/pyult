@@ -1131,9 +1131,9 @@ class UltDf (UltAnalysis):
             df = df.apply(lambda x: self.normalize_vec(x) if x.name in coln else x)
         return df
 
-    def save_dataframe (self, outpath, df=None):
+    def save_dataframe (self, outpath, df=None, mode='w', header=True):
         df = self.__getdf(df=df)
-        df.to_csv(outpath, sep='\t', header=True, index=False)
+        df.to_csv(outpath, sep='\t', header=header, index=False, mode=mode)
         return None
 
     def __getdf (self, df=None):
