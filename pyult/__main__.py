@@ -1,6 +1,7 @@
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
+parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
 args = parser.parse_args()
 import copy
 import os
@@ -91,26 +92,34 @@ def ask_target_dir (obj, path):
             tdir = input()
     return obj
 
-def ask_whattodo ():
-    print('\n##########')
-    print('- What do you want from the file(s)?')
-    print('--- Pictures             => pic')
-    print('--- Videos               => vid')
-    print('--- Dataframes           => df')
-    print('--- TextGrids            => tg')
-    print('--- If you want them all => all')
-    print('--- You can specify them together with a space, e.g. pic vid')
+def ask_whattodo (task):
+    def print_texts ():
+        print('\n##########')
+        print('- What do you want from the file(s)?')
+        print('--- Pictures             => pic')
+        print('--- Videos               => vid')
+        print('--- Dataframes           => df')
+        print('--- TextGrids            => tg')
+        print('--- If you want them all => all')
+        print('--- You can specify them together with a comma but no space, e.g. pic,vid')
+        return None
+    def ok_ng_check (task, ok_inputs):
+        task = task.split(',')
+        task = [ i for i in task if i != '' ]
+        oks = [ i for i in task if     i in ok_inputs ]
+        ngs = [ i for i in task if not i in ok_inputs ]
+        return (oks, ngs)
     ok_inputs = [ 'pic', 'vid', 'df', 'tg', 'all' ]
+    if task is None:
+        print_texts()
+        task = input()
     ok_while = False
     while not ok_while:
-        whattodo = input()
-        whattodo = whattodo.split(' ')
-        whattodo = [ i for i in whattodo if i != '' ]
-        oks = [ i for i in whattodo if     i in ok_inputs ]
-        ngs = [ i for i in whattodo if not i in ok_inputs ]
+        oks, ngs = ok_ng_check(task, ok_inputs)
         if len(oks)==0:
             print('- Please choose out of the followings:')
             print('--- {}'.format(', '.join(ok_inputs)))
+            task = input()
         else:
             ok_while = True
     if len(ngs)>0:
@@ -536,9 +545,9 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path ) :
+def main ( obj, path, task ) :
     obj = ask_target_dir(obj, path)
-    whattodo = ask_whattodo()
+    whattodo = ask_whattodo(task)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
     if tgT:
         check_paths_alright(obj, obj.wdir)
@@ -566,6 +575,6 @@ def main ( obj, path ) :
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path)
+    main(obj, args.path, args.task)
 ###
 
