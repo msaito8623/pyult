@@ -9,7 +9,16 @@ import cv2
 import multiprocessing as mp
 import numpy as np
 import pyper
-from . import pyult
+from . import ncspline as spl
+
+def fit_ncspline (y, x=None, knots=0):
+    if x is None:
+        x = np.arange(len(y))
+    if knots==0:
+        knots = len(y)/5
+    mdl = spl.get_natural_cubic_spline_model(x, y, minval=min(x), maxval=max(x), n_knots=knots)
+    est = mdl.predict(x)
+    return est
 
 def fitted_values ( vect, pred=None, knots=30, png_out=False, outpath=None, lwd=1, col=('black','red'), xlab='', ylab=''):
     r = pyper.R()
