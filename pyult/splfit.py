@@ -11,13 +11,15 @@ import numpy as np
 import pyper
 from . import ncspline as spl
 
-def fit_ncspline (y, x=None, knots=0):
+def fit_ncspline (y, x=None, knots=0, pred_x=None):
     if x is None:
         x = np.arange(len(y))
     if knots==0:
         knots = len(y)/5
     mdl = spl.get_natural_cubic_spline_model(x, y, minval=min(x), maxval=max(x), n_knots=knots)
-    est = mdl.predict(x)
+    if pred_x is None:
+        pred_x = x 
+    est = mdl.predict(pred_x)
     return est
 
 def fitted_values ( vect, pred=None, knots=30, png_out=False, outpath=None, lwd=1, col=('black','red'), xlab='', ylab=''):
@@ -105,7 +107,7 @@ def fit_spline ( img, cores=1, inplace=False ):
         pool = mp.Pool(cores)
         pks = pool.map(_fitted_values, [img[:,i] for i in range(img.shape[1])])
     else:
-        pks = [ fitted_values(img[:,i]) for i in range(img.shape[1])]
+        pks = [ fit_ncspline(img[:,i]) for i in range(img.shape[1])]
     pks = [ peaks(i) for i in pks ]
     pks = { i:j for i,j in enumerate(pks) }
 
@@ -162,10 +164,16 @@ def fit_spline ( img, cores=1, inplace=False ):
             cpos = pks[i]['peak_poses']
             cval = pks[i]['peak_vals']
 
-    xy = { i:j['peak_poses'] for i,j in pks.items() }
-    ftv = fitted_values(vect=list(xy.values()), pred=list(xy.keys()), knots=10)
+    xy0 = { i:j['peak_poses'] for i,j in pks.items() }
+    xy1 = { i:j for i,j in xy0.items() if not j is None }
+    y = np.array(list(xy1.values()))
+    x = np.array(list(xy1.keys()))
+    nxmin = np.array(list(xy1.keys())).astype(int).min()
+    nxmax = np.array(list(xy1.keys())).astype(int).max()
+    nx = np.arange(nxmin, nxmax+1)
+    ftv = fit_ncspline(y=y, x=x, knots=10, pred_x=nx)
     ftv = ftv.round().astype(int)
-    ftv_dict = {'index':np.array(list(xy.keys())), 'fitted_values':ftv}
+    ftv_dict = {'index':nx, 'fitted_values':ftv}
     if inplace:
         spline_values = ftv_dict
         ftv_dict = None
