@@ -2,11 +2,13 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
 parser.add_argument('-t', '--task', help='What to do. Specify either pic (png images), vid (videos), df (dataframes), tg (TextGrids), all, or combinations of them with commas but no spaces, e.g. pic,tg,df.')
+parser.add_argument('-i', '--interactive', action='store_false', help='If provided, the interactive mode is turned off. With the interactive option on, the script asks you what to do for the options unspecified.')
 parser.add_argument('-cr', '--crop', help='Cropping points on all the four sides of images. Specify them as XMIN,XMAX,YMIN,YMAX, e.g. 20,50,100,600')
 parser.add_argument('-r', '--resolution', help='How much to reduce resolution along y-axis. For example, 3 takes every 3rd pixel along y-axis in each frame.')
 parser.add_argument('-x', '--flipx', action='store_true', help='If provided, each image is flipped horizontally.')
 parser.add_argument('-y', '--flipy', action='store_true', help='If provided, each image is flipped vertically.')
 parser.add_argument('-cb', '--combine', action='store_true', help='If provided, output dataframes will be combined into a single gz file. Otherwise, dataframes are produced for each recording.')
+parser.add_argument('-s', '--spline', action='store_true', help='If provided, spline curves are fitted to each frame and included in the products, e.g. dataframe.')
 args = parser.parse_args()
 import copy
 import os
@@ -76,11 +78,14 @@ def create_dir ( obj, dirname ):
 ### Generic ###
 
 ### Initiation ###
-def ask_target_dir (obj, path):
+def ask_target_dir (obj, path, interactive):
     if path is None:
-        print('\n##########')
-        print('- Give me a file path or a directory path which has all the necessary files.')
-        tdir = input()
+        if interactive:
+            print('\n##########')
+            print('- Give me a file path or a directory path which has all the necessary files.')
+            tdir = input()
+        else:
+            raise ValueError('Path to a directory is not provided.')
     else:
         tdir = path
     ok = False
@@ -97,7 +102,7 @@ def ask_target_dir (obj, path):
             tdir = input()
     return obj
 
-def ask_whattodo (task):
+def ask_whattodo (task, interactive):
     def print_texts ():
         print('\n##########')
         print('- What do you want from the file(s)?')
@@ -116,8 +121,11 @@ def ask_whattodo (task):
         return (oks, ngs)
     ok_inputs = [ 'pic', 'vid', 'df', 'tg', 'all' ]
     if task is None:
-        print_texts()
-        task = input()
+        if interactive:
+            print_texts()
+            task = input()
+        else:
+            raise ValueError('Specify what the script should do, by "--task" (or "-t")')
     ok_while = False
     while not ok_while:
         oks, ngs = ok_ng_check(task, ok_inputs)
@@ -219,7 +227,7 @@ def prepare_imgs ( obj, ind ):
 ###
 
 ### Cropping ###
-def where_to_crop (crop_points):
+def where_to_crop (crop_points, interactive):
     def ask_crop_ornot ():
         print('\n##########')
         print('- Do you want to crop pictures? (yes or no)')
@@ -239,10 +247,13 @@ def where_to_crop (crop_points):
         return None
 
     if crop_points is None:
-        wanna_crop = yesno_to_bool(ask_crop_ornot())
-        if wanna_crop:
-            print_texts()
-            crop_points = input()
+        if interactive:
+            wanna_crop = yesno_to_bool(ask_crop_ornot())
+            if wanna_crop:
+                print_texts()
+                crop_points = input()
+            else:
+                crop_points = False
         else:
             crop_points = False
     if crop_points:
@@ -268,7 +279,7 @@ def crop_local ( obj, crp ):
 ### Cropping ###
 
 ### Reduce Resolution ###
-def is_resol_reduc_needed (resol):
+def is_resol_reduc_needed (resol, interactive):
     def ask_reduce_resolution_ornot ():
         print('\n##########')
         print('- Do you want to reduce resolution of y-axis? (yes or no)')
@@ -289,10 +300,13 @@ def is_resol_reduc_needed (resol):
         return None
     
     if resol is None:
-        wanna_reduce_resol = yesno_to_bool(ask_reduce_resolution_ornot())
-        if wanna_reduce_resol:
-            print_texts()
-            resol = input()
+        if interactive:
+            wanna_reduce_resol = yesno_to_bool(ask_reduce_resolution_ornot())
+            if wanna_reduce_resol:
+                print_texts()
+                resol = input()
+            else:
+                resol = False
         else:
             resol = False
     if resol:
@@ -373,7 +387,7 @@ def change_img_shapes ( obj, imgtype, cores ):
 ### Change image shapes ###
 
 ### Flip ###
-def determine_flip_directions (flipx, flipy):
+def determine_flip_directions (flipx, flipy, interactive):
     def ask_flip ( vertical=False ):
         if vertical:
             direction = 'vertically'
@@ -404,8 +418,10 @@ def determine_flip_directions (flipx, flipy):
         return flp
 
     if not flipx:
-        flipx = ask_flip(vertical=False)
+        if interactive:
+            flipx = ask_flip(vertical=False)
     if not flipy:
+        if interactive:
         flipy= ask_flip(vertical=True)
     flp = to_flags(flipx, flipy)
     return flp
@@ -428,16 +444,21 @@ def flip_local ( obj, flip_directions ):
 ### Flip ###
 
 ### Spline Fitting ###
-def ask_spline_fitting(boolean=False) :
-    print('\n##########')
-    print('- Do you want to fit spline curves? (yes or no)')
-    ok = False
-    while not ok:
-        spl = input()
-        if check_yes_or_no(spl):
-            ok = True
-    if boolean:
-        spl = yesno_to_bool(spl)
+def ask_spline_fitting(spl, interactive) :
+    if not spl:
+        if interactive:
+            print('\n##########')
+            print('- Do you want to fit spline curves? (yes or no)')
+            spl = input()
+            ok = False
+            opts = [ 'yes', 'no', 'y', 'n']
+            while not ok:
+                if check_yes_or_no(spl):
+                    ok = True
+                else:
+                    print('- Please choose out of the followings:')
+                    print('--- {}'.format(', '.join(opts)))
+                    spl = input()
     return spl
 
 def spline_local (obj, spl, cores) :
@@ -564,9 +585,9 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, crop, resol, flipx, flipy, combine ) :
-    obj = ask_target_dir(obj, path)
-    whattodo = ask_whattodo(task)
+def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl ) :
+    obj = ask_target_dir(obj, path, interactive)
+    whattodo = ask_whattodo(task, interactive)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
     if tgT:
         check_paths_alright(obj, obj.wdir)
@@ -579,11 +600,10 @@ def main ( obj, path, task, crop, resol, flipx, flipy, combine ) :
         else:
             imgtype = None
             cores = 1
-        crp = where_to_crop(crop)
-        rsl = is_resol_reduc_needed(resol)
-        flip_directions = determine_flip_directions(flipx, flipy)
-        # spl = ask_spline_fitting(boolean=True) # Spline-fitting functionality is turned off temporarily
-        spl = False
+        crp = where_to_crop(crop, interactive)
+        rsl = is_resol_reduc_needed(resol, interactive)
+        flip_directions = determine_flip_directions(flipx, flipy, interactive)
+        spl = ask_spline_fitting(spl, interactive)
         if spl and not any([picT, vidT]):
             cores = ask_cores()
         for i in tqdm(range(len(obj.paths['ult'])), desc='Main'):
@@ -594,6 +614,6 @@ def main ( obj, path, task, crop, resol, flipx, flipy, combine ) :
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.crop, args.resolution, args.flipx, args.flipy, args.combine)
+    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline)
 ###
 
