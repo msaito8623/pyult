@@ -423,7 +423,7 @@ def determine_flip_directions (flipx, flipy, interactive):
             flipx = ask_flip(vertical=False)
     if not flipy:
         if interactive:
-        flipy= ask_flip(vertical=True)
+            flipy = ask_flip(vertical=True)
     flp = to_flags(flipx, flipy)
     return flp
 
