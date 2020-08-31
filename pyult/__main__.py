@@ -10,6 +10,7 @@ parser.add_argument('-y', '--flipy', action='store_true', help='If provided, eac
 parser.add_argument('-cb', '--combine', action='store_true', help='If provided, output dataframes will be combined into a single gz file. Otherwise, dataframes are produced for each recording.')
 parser.add_argument('-s', '--spline', action='store_true', help='If provided, spline curves are fitted to each frame and included in the products, e.g. dataframe.')
 parser.add_argument('-co', '--cores', help='How many cores to be used. Parallel processing is carried out with multiple cores for fitting splines and making fan-shaped pictures.')
+parser.add_argument('-ft', '--figuretype', help='What shapes of images should be produced: raw (rectangle), squ (square), fan (fan-shaped). Combinations of the options (connected by commas) are also acceptable, e.g. fan,raw')
 args = parser.parse_args()
 import copy
 import os
@@ -329,22 +330,29 @@ def reduce_resolution_local ( obj, rsl ):
 ### Reduce Resolution ###
 
 ### Change image shapes ###
-def ask_which_imgtype ():
-    print('\n##########')
-    print('- What shape of pictures do you want?')
-    print('--- Raw (rectangle) => raw')
-    print('--- Square          => squ')
-    print('--- Fan-shape       => fan')
-    print('--- All             => all')
-    print('--- You can specify them together with a space, e.g. raw squ')
+def ask_which_imgtype (figtype, interactive):
+    def print_texts ():
+        print('\n##########')
+        print('- What shape of pictures do you want?')
+        print('--- Raw (rectangle) => raw')
+        print('--- Square          => squ')
+        print('--- Fan-shape       => fan')
+        print('--- All             => all')
+        print('--- You can specify them together with a space, e.g. raw squ')
+        return None
+    if figtype is None:
+        if interactive:
+            print_texts()
+            figtype = input()
+        else:
+            figtype = 'raw'
     ok_inputs = [ 'raw', 'squ', 'fan', 'all' ]
     ok_while = False
     while not ok_while:
-        whattodo = input()
-        whattodo = whattodo.split(' ')
-        whattodo = [ i for i in whattodo if i != '' ]
-        oks = [ i for i in whattodo if     i in ok_inputs ]
-        ngs = [ i for i in whattodo if not i in ok_inputs ]
+        figtype = figtype.split(',')
+        figtype = [ i for i in figtype if i != '' ]
+        oks = [ i for i in figtype if     i in ok_inputs ]
+        ngs = [ i for i in figtype if not i in ok_inputs ]
         if len(oks)==0:
             print('- Please choose out of the followings:')
             print('--- {}'.format(', '.join(ok_inputs)))
@@ -456,6 +464,7 @@ def ask_spline_fitting(spl, interactive) :
             opts = [ 'yes', 'no', 'y', 'n']
             while not ok:
                 if check_yes_or_no(spl):
+                    spl = yesno_to_bool(spl)
                     ok = True
                 else:
                     print('- Please choose out of the followings:')
@@ -590,7 +599,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl, cores ) :
+def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl, cores, figtype) :
     obj = ask_target_dir(obj, path, interactive)
     whattodo = ask_whattodo(task, interactive)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -600,7 +609,7 @@ def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl
     if any([dfT, picT, vidT]):
         check_paths_alright(obj, obj.wdir)
         if any([picT, vidT]):
-            imgtype = ask_which_imgtype()
+            imgtype = ask_which_imgtype(figtype, interactive)
             cores = determine_cores(imgtype)
         else:
             imgtype = None
@@ -623,6 +632,6 @@ def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline, args.cores)
+    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline, args.cores, args.figuretype)
 ###
 
