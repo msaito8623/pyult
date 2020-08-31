@@ -71,24 +71,33 @@ def deriv_discrete ( vect ):
     return drvs
 
 def peaks ( vect, howmany=3 ):
-    def __cross_zero ( nums ):
-        return (nums[0]>0 and nums[1]<0) or (nums[0]<0 and nums[1]>0)
     f0 = vect
     d1 = deriv_discrete(f0)
     d2 = deriv_discrete(d1)
     d1_0 = np.where(d1==0)[0]
-    if len(d1_0)==0:
-        aaa = [ __cross_zero(d1[i:(i+2)]) for i in range(len(d1)-1) ]
-        aaa = np.array(list(aaa) + [False])
-        d1_0 = np.where(aaa)[0]
-    try:
-        aaa = d1_0 + 1
-        bbb = np.concatenate([d1_0[1:],np.arange(1)])
-        rmpos = np.where(aaa==bbb)[0]+1
-        ccc = np.delete(d1_0, rmpos)
-    except TypeError:
-        pass
+    def clean_d1_0 ( d1_0, approx=False ):
+        def nearest (d1_0):
+            def __cross_zero ( nums ):
+                return (nums[0]>0 and nums[1]<0) or (nums[0]<0 and nums[1]>0)
+            aaa = [ __cross_zero(d1[i:(i+2)]) for i in range(len(d1)-1) ]
+            aaa = np.array(list(aaa) + [False])
+            d1_0 = np.where(aaa)[0]
+            return d1_0
+        if approx or len(d1_0)==0:
+            d1_0 = nearest(d1_0)
+        try:
+            aaa = d1_0 + 1
+            bbb = np.concatenate([d1_0[1:],np.arange(1)])
+            rmpos = np.where(aaa==bbb)[0]+1
+            d1_0 = np.delete(d1_0, rmpos)
+        except TypeError:
+            pass
+        return d1_0
+    ccc = clean_d1_0(d1_0)
     peak_poses = ccc[d2[ccc]<0]
+    if len(peak_poses)<=1:
+        ccc = clean_d1_0(d1_0, approx=True)
+        peak_poses = ccc[d2[ccc]<0]
     peak_vals = f0[peak_poses]
     peak_dict = { i:j for i,j in zip(peak_poses, peak_vals) if i <= len(f0)*3/4 }
     max_vals = np.sort(np.array(list(peak_dict.values())))[::-1][:howmany]

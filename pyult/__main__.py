@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import pdb
 import pyult.pyult as pyult
+import pyult.splfit as splfit
 import shutil
 import subprocess
 from tqdm import tqdm
@@ -463,13 +464,13 @@ def ask_spline_fitting(spl, interactive) :
 
 def spline_local (obj, spl, cores) :
     if spl:
-        obj.splval = [ obj.fit_spline(img=i, cores=cores) for i in tqdm(obj.img,desc='Spline') ]
-        obj.splimg = [ obj.fit_spline_img(img=i,ftv=j,cores=cores) for i,j in zip(obj.img, obj.splval) ]
+        obj.splval = [ splfit.fit_spline(img=i, cores=cores) for i in tqdm(obj.img,desc='Spline') ]
+        obj.splimg = [ splfit.fit_spline_img(img=i,ftv=j,cores=cores) for i,j in zip(obj.img, obj.splval) ]
     return obj
 ### Spline Fitting ###
 
 ### Produce functions ###
-def produce_df ( obj, path_index, combine ):
+def produce_df ( obj, path_index, combine, spl ):
     df_dir = create_dir(obj, 'Dataframes')
     udf = pyult.UltDf(obj)
     try:
@@ -488,8 +489,11 @@ def produce_df ( obj, path_index, combine ):
             alfiles = False
             print('- WARNING: Alignment files (i.e. *.phoneswithQ and *.words) are not found, therefore segments/words information is not integrated into produced dataframes)')
     udf.df = udf.img_to_df(img=udf.raw, add_time=True, combine=False)
-    if hasattr(udf, 'splval'):
-        udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
+    if spl:
+        if hasattr(udf, 'splval'):
+            udf.df = [ udf.integrate_spline_values(i,j) for i,j in zip(udf.df, udf.splval) ]
+        else:
+            raise AttributeError('Spline values are not found in attributes.')
     udf.df = pd.concat(udf.df, ignore_index=True)
     if alfiles:
         udf.df = udf.integrate_segments(path_p, path_w, df=udf.df, rmvnoise=True)
@@ -576,7 +580,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
     obj = change_img_shapes(obj, imgtype, cores)
     obj = flip_local(obj, flip_directions)
     if dfT:
-        produce_df(obj, indx, combine)
+        produce_df(obj, indx, combine, spl)
     if picT:
         produce_png(obj, indx)
     if vidT:
