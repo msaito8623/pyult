@@ -9,6 +9,7 @@ parser.add_argument('-x', '--flipx', action='store_true', help='If provided, eac
 parser.add_argument('-y', '--flipy', action='store_true', help='If provided, each image is flipped vertically.')
 parser.add_argument('-cb', '--combine', action='store_true', help='If provided, output dataframes will be combined into a single gz file. Otherwise, dataframes are produced for each recording.')
 parser.add_argument('-s', '--spline', action='store_true', help='If provided, spline curves are fitted to each frame and included in the products, e.g. dataframe.')
+parser.add_argument('-co', '--cores', help='How many cores to be used. Parallel processing is carried out with multiple cores for fitting splines and making fan-shaped pictures.')
 args = parser.parse_args()
 import copy
 import os
@@ -589,7 +590,7 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl ) :
+def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl, cores ) :
     obj = ask_target_dir(obj, path, interactive)
     whattodo = ask_whattodo(task, interactive)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
@@ -608,8 +609,12 @@ def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl
         rsl = is_resol_reduc_needed(resol, interactive)
         flip_directions = determine_flip_directions(flipx, flipy, interactive)
         spl = ask_spline_fitting(spl, interactive)
-        if spl and not any([picT, vidT]):
-            cores = ask_cores()
+        maybe_mp = spl and not any([picT, vidT])
+        if maybe_mp:
+            if (cores is None) and interactive:
+                cores = ask_cores()
+            else:
+                cores = 1
         for i in tqdm(range(len(obj.paths['ult'])), desc='Main'):
             produce_wrapper(obj, i, dfT, picT, vidT, crp, rsl, imgtype, flip_directions, cores, spl, combine)
     return None
@@ -618,6 +623,6 @@ def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline)
+    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline, args.cores)
 ###
 

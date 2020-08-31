@@ -108,13 +108,13 @@ def peaks ( vect, howmany=3 ):
     peak_ratio = aaa[0]/aaa[1]
     return {'peak_poses':peak_poses, 'peak_vals':peak_vals, 'peak_ratio':peak_ratio}
 
-def _fitted_values ( vect ):
-    return fitted_values(vect)
+def _parallel ( vect ):
+    return fit_ncspline(vect)
 
 def fit_spline ( img, cores=1, inplace=False ):
     if cores != 1:
         pool = mp.Pool(cores)
-        pks = pool.map(_fitted_values, [img[:,i] for i in range(img.shape[1])])
+        pks = pool.map(_parallel, [img[:,i] for i in range(img.shape[1])])
     else:
         pks = [ fit_ncspline(img[:,i]) for i in range(img.shape[1])]
     pks = [ peaks(i) for i in pks ]
