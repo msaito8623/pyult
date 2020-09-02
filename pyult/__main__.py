@@ -11,6 +11,7 @@ parser.add_argument('-cb', '--combine', action='store_true', help='If provided, 
 parser.add_argument('-s', '--spline', action='store_true', help='If provided, spline curves are fitted to each frame and included in the products, e.g. dataframe.')
 parser.add_argument('-co', '--cores', help='How many cores to be used. Parallel processing is carried out with multiple cores for fitting splines and making fan-shaped pictures.')
 parser.add_argument('-ft', '--figuretype', help='What shapes of images should be produced: raw (rectangle), squ (square), fan (fan-shaped). Combinations of the options (connected by commas) are also acceptable, e.g. fan,raw')
+parser.add_argument('-cl', '--clean', action='store_true', help='If provided, the target directory specified by --path is cleaned, so all the problematic files are removed and put into a new directory named "BadFiles" in the same directory as the target directoryl.')
 args = parser.parse_args()
 import copy
 import os
@@ -81,7 +82,7 @@ def create_dir ( obj, dirname ):
 ### Generic ###
 
 ### Initiation ###
-def ask_target_dir (obj, path, interactive):
+def ask_target_dir (obj, path, interactive, clean):
     if path is None:
         if interactive:
             print('\n##########')
@@ -91,6 +92,8 @@ def ask_target_dir (obj, path, interactive):
             raise ValueError('Path to a directory is not provided.')
     else:
         tdir = path
+    if clean:
+        obj.clean_dir(tdir)
     ok = False
     while not ok:
         if obj.exist(tdir):
@@ -599,8 +602,8 @@ def produce_wrapper (obj, indx, dfT, picT, vidT, crp, rsl, imgtype, flip_directi
 ### Produce functions ###
 
 ### Main functions ###
-def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl, cores, figtype) :
-    obj = ask_target_dir(obj, path, interactive)
+def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl, cores, figtype, clean ) :
+    obj = ask_target_dir(obj, path, interactive, clean)
     whattodo = ask_whattodo(task, interactive)
     picT, vidT, dfT, tgT = whattodo_to_flags(whattodo)
     if tgT:
@@ -632,6 +635,6 @@ def main ( obj, path, task, interactive, crop, resol, flipx, flipy, combine, spl
 ### Body ###
 if __name__ == '__main__':
     obj = pyult.UltPicture()
-    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline, args.cores, args.figuretype)
+    main(obj, args.path, args.task, args.interactive, args.crop, args.resolution, args.flipx, args.flipy, args.combine, args.spline, args.cores, args.figuretype, args.clean)
 ###
 
