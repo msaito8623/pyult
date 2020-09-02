@@ -6,7 +6,6 @@ import cv2
 from scipy import ndimage
 import math
 import os
-import pathlib
 import subprocess
 import soundfile as sf
 import pyper
@@ -163,31 +162,62 @@ class UltFiles (Files):
         self.paths['txt']   = [ i for i in self.paths['txt'] if not '_Track' in i ]
         self.paths['phoneswithQ']      = self.find(directory, '.phoneswithQ')
         self.paths['words']      = self.find(directory, '.words')
+        return None
     
-    def is_all_set (self, verbose=False, exclude_empty_list=False):
-
-        def clean_pathdict (path_dict):
-            path_dict = { i:[self.name(k, drop_extension=True) for k in j] for i,j in path_dict.items() }
-            path_dict = { i:[clean_name(k) for k in j] for i,j in path_dict.items() }
-            return path_dict
-
+    def clean_pathdict (self, path_dict=None, inplace=False):
+        """
+        Clean self.paths. Remove extensions first and expected
+        additional parts of file names next, e.g. 'US' in xxxUS.txt.
+        """
         def clean_name ( nm ):
             nm = nm.split('.')
             tgts = ['_Track[0-9]+$', 'US$', '_corrected']
             for i in tgts:
                 nm[0] = re.sub(i, '', nm[0])
             return '.'.join(nm)
+        if path_dict is None:
+            if hasattr(self, 'paths'):
+                path_dict = self.paths
+            else:
+                raise AttributeError('Attribute "paths" is not found.')
+        path_dict = { i:[self.name(k, drop_extension=True) for k in j] for i,j in path_dict.items() }
+        path_dict = { i:[clean_name(k) for k in j] for i,j in path_dict.items() }
+        if inplace:
+            self.paths = path_dict
+            path_dict = None
+        return path_dict
 
-        def type_diff (path_dict):
+    def exclude_empty_list ( self, tgt_dct=None, inplace=False ):
+        if tgt_dct is None:
+            if hasattr(self, 'paths'):
+                tgt_dct = self.paths
+            else:
+                raise AttributeError('Attribute "paths" is not found.')
+        tgt_dct = { i:j for i,j in tgt_dct.items() if len(j)>0 }
+        if inplace:
+            self.paths = tgt_dct
+            tgt_dct = None
+        return tgt_dct
+
+    def is_all_set (self, verbose=False, exclude_empty_list=False):
+
+        def show_diff (path_dict):
+            """
+            Detect and display missing files. This function is used when verbose=True.
+            """
             sets = { i:set(j) for i,j in path_dict.items() }
             for i in sets.keys():
                 for j in sets.keys():
                     diff = sets[i] - sets[j]
                     if len(diff)!=0:
                         for k in diff:
-                            print('Filename "{}" exists only with .{}, but not with .{}.'.format(k,i,j))
+                            print('Filename "{}" exists with .{}, but not with .{}.'.format(k,i,j))
+            return None
         
         def check_ind (path_dict, verbose=False):
+            """
+            Check if file names are matched one by one.
+            """
             kys = path_dict.keys()
             bln = len(path_dict[list(kys)[0]])
             allsame = True
@@ -196,25 +226,25 @@ class UltFiles (Files):
                 for i in kys:
                     tgt.update({i:path_dict[i][ind]})
                 if len(set(tgt.values()))!=1:
-                    if verbose:
+                    if verbose:# If verbose, all the files should be checked.
                         allsame=False
                         for j,k in tgt.items():
                             print('Filenames --> Not match.')
                             print('{}: {}'.format(j,k))
-                    else:
+                    else:# If not verbose, not all the files need to be checked.
                         return False
             return allsame
 
         tgt_dct = self.paths
         if exclude_empty_list:
-            tgt_dct = { i:j for i,j in tgt_dct.items() if len(j)>0 }
-        tgt_dct = clean_pathdict(tgt_dct)
+            tgt_dct = self.exclude_empty_list(tgt_dct=tgt_dct, inplace=False)
+        tgt_dct = self.clean_pathdict(tgt_dct)
         lens = [ len(i) for i in tgt_dct.values() ]
         if len(set(lens))!=1:
             allsame = False
             if verbose:
                 print('Numbers of paths --> Not match.')
-                type_diff(tgt_dct)
+                show_diff(tgt_dct)
         else:
             if verbose:
                 print('Numbers of paths --> OK.')
@@ -224,7 +254,7 @@ class UltFiles (Files):
                 allsame = False
                 if verbose:
                     print('Numbers of unique paths --> Not match.')
-                    type_diff(tgt_dct)
+                    show_diff(tgt_dct)
             else:
                 if verbose:
                     print('Numbers of unique paths --> OK.')
@@ -237,6 +267,43 @@ class UltFiles (Files):
         for i,j in dct.items():
             ky = i.lower()
             setattr(self, ky, j)
+
+    def clean_paths ( self, paths=None, exclude_empty_list=True ):
+        """
+        Exclude empty file types, e.g. .phoneswithQ, and
+        extract only main file name parts for each file type.
+        """
+        if not paths is None:
+            self.set_paths(paths)
+        if exclude_empty_list:
+            self.exclude_empty_list(inplace=True)
+        self.clean_pathdict(inplace=True)
+        return None
+
+    def clean_dir ( self, target_dir ):
+        def find_bad_fnames ():
+            fnames = [ j for i in self.paths.values() for j in i ]
+            unique_fnames = sorted(list(set(fnames)))
+            bad_fnames = []
+            for i in unique_fnames:
+                counts = fnames.count(i)
+                if counts!=len(self.paths):
+                    bad_fnames.append(i)
+            return bad_fnames
+        self.clean_paths(paths=target_dir)
+        bad_fnames = find_bad_fnames()
+        if len(bad_fnames)!=0:
+            newdir = target_dir + '/BadFiles'
+            os.makedirs(newdir, exist_ok=True)
+            tdir = pathlib.Path(target_dir)
+            files = tdir.glob('**/*')
+            files = [ i for i in files if i.is_file() ]
+            files = [ j for i in bad_fnames for j in files if i in str(j) ]
+            for i in files:
+                newpath = pathlib.Path(str(i.parent)+'/BadFiles/'+i.name)
+                i.rename(newpath)
+        return None
+
 
 class Prompt (UltFiles):
     def __init__(self, path=None, encoding=None):
