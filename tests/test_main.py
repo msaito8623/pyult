@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import pyult
+import pyult.pyult as pyult
 
 rdir = './tests/resources'
 
