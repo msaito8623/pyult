@@ -28,6 +28,15 @@ class Recording:
     def add_crop_line (self, crop_points):
         self.imgs = image.add_crop_line(self.imgs, crop_points)
         return None
+    def flip (self, direct):
+        self.imgs = image.flip(self.imgs, direct)
+        return None
+    def reduce_y (self, every_nth):
+        self.imgs = image.reduce_y(self.imgs, every_nth)
+        return None
+    def fit_spline (self):
+        self.imgs = image.fit_spline(self.imgs)
+        return None
 
 
 
