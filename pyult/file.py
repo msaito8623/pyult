@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def read_ult (path):
     return np.fromfile(open(path, "rb"), dtype=np.uint8)
@@ -19,4 +20,13 @@ def read_txt (path):
     kys = ['prompt', 'date', 'participant']
     content = { i:j for i,j in zip(kys, content) }
     return content
+def read_phones (path):
+    colns = ['end', 'segment']
+    dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
+    return dat
+def read_words (path):
+    colns = ['end','word']
+    dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
+    return dat
+
 

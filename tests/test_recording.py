@@ -1,6 +1,8 @@
-import pytest
-import os
 import cv2
+import numpy as np
+import os
+import pandas as pd
+import pytest
 from pyult import recording
 
 TEST_ROOT = os.path.dirname(__file__)
@@ -22,6 +24,22 @@ def test_read_txt ():
     path = os.path.join(TEST_ROOT, 'resources/sample.txt')
     obj.read_txt(path)
     assert len(obj.__dict__)==3
+
+def test_read_phones ():
+    obj = recording.Recording()
+    path = os.path.join(TEST_ROOT, 'resources/sample.phoneswithQ')
+    obj.read_phones(path)
+    cond1 = len(obj.phones)==13
+    cond2 = obj.phones.loc[10,'end']==1.51
+    assert all([cond1, cond2])
+
+def test_read_words ():
+    obj = recording.Recording()
+    path = os.path.join(TEST_ROOT, 'resources/sample.words')
+    obj.read_words(path)
+    cond1 = len(obj.words)==7
+    cond2 = obj.words.loc[3,'end']==0.93
+    assert all([cond1, cond2])
 
 def test_vec_to_imgs ():
     obj = recording.Recording()
@@ -108,7 +126,7 @@ def test_reduce_y ():
     cond2 = all(obj.imgs[0,:,0] == tesvec)
     assert all([cond1, cond2])
 
-def test_fit_spline ():
+def test_fit_spline_without_fitted_values ():
     obj = recording.Recording()
     ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
     uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
@@ -116,12 +134,72 @@ def test_fit_spline ():
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
-    obj.fit_spline()
-    cond1 = obj.imgs.shape == (3, 842, 64, 3)
+    obj.fit_spline(set_fitted_values=False)
+    cond1 = obj.imgs.shape == (2, 842, 64, 3)
     figpath = os.path.join(TEST_ROOT, 'resources/sample_spline.png')
     img = cv2.imread(figpath, 1)
-    assert (obj.imgs[1] == img).all()
-    
+    cond2 = (obj.imgs[1] == img).all()
+    assert all([cond1, cond2])
+
+def test_fit_spline_with_fitted_values ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.imgs = obj.imgs[:2]
+    obj.fit_spline(set_fitted_values=True)
+    assert hasattr(obj, 'fitted_values')
+
+def test_imgs_to_df ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.imgs_to_df()
+    pos = np.linspace(0, len(obj.df)-1, 10).round().astype(int)
+    obj.df = obj.df.iloc[pos,:].reset_index(drop=True).round(10)
+    gzpath = os.path.join(TEST_ROOT, 'resources/sample.gz')
+    samplegz = pd.read_csv(gzpath, sep='\t', header=0)
+    samplegz = samplegz.round(10)
+    assert (obj.df==samplegz).all().all()
+
+def test_integrate_segments ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    phonespath = os.path.join(TEST_ROOT, 'resources/sample.phoneswithQ')
+    wordspath = os.path.join(TEST_ROOT, 'resources/sample.words')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.read_phones(phonespath)
+    obj.read_words(wordspath)
+    obj.vec_to_imgs()
+    obj.imgs_to_df()
+    obj.integrate_segments()
+    pos = np.linspace(0, len(obj.df)-1, 10).round().astype(int)
+    obj.df = obj.df.iloc[pos,:].reset_index(drop=True).round(10)
+    gzpath = os.path.join(TEST_ROOT, 'resources/sample2.gz')
+    samplegz = pd.read_csv(gzpath, sep='\t', header=0)
+    samplegz = samplegz.round(10)
+    assert (obj.df==samplegz).all().all()
+
+def test_integrate_splines ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.imgs = obj.imgs[:2]
+    obj.imgs_to_df()
+    obj.integrate_splines()
+    cond1 = 'y_spline' in obj.df.columns
+    cond2 = len(set(obj.df.y_spline.dropna())) == 68
+    assert all([cond1, cond2])
 
 
 

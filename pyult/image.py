@@ -70,12 +70,17 @@ def reduce_y (imgs, every_nth):
     return imgs
 
 ### Functions for fitting spline curves (FROM HERE) ###
-def fit_spline (imgs):
-    imgs = [ fit_spline_2d(i) for i in imgs ]
-    imgs = np.array(imgs)
-    return imgs
+def fit_spline (imgs, return_fitted_values=False):
+    imgs = [ fit_spline_2d(i, return_fitted_values) for i in imgs ]
+    if return_fitted_values:
+        images = [ i['image'] for i in imgs ]
+        ftvs = [ i['fitted_values'] for i in imgs ]
+        ret = {'images':np.array(images), 'fitted_values':ftvs}
+    else:
+        ret = np.array(imgs)
+    return ret
 
-def fit_spline_2d (img):
+def fit_spline_2d (img, return_fitted_values=False):
     ftv = get_fitted_values(img)
     yyy = ftv['fitted_values']
     xxx = ftv['index']
@@ -84,7 +89,11 @@ def fit_spline_2d (img):
     for xpos,ypos in zip(xxx, yyy):
         if not ypos is None:
             img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
-    return img
+    if return_fitted_values:
+        ret = {'image':img, 'fitted_values':ftv}
+    else:
+        ret = img
+    return ret
 
 def get_fitted_values (img):
     pks = [ spl.fit_ncspline(img[:,i]) for i in range(img.shape[1])]
