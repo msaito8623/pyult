@@ -21,13 +21,25 @@ class Recording:
         self.dict_to_attr(dct=dct)
         return None
     def read_phones (self, path):
-        self.phones = file.read_phones(path)
+        try:
+            self.phones = file.read_phones(path)
+        except FileNotFoundError:
+            if not hasattr(self, 'phones'):
+                self.phones = None
+            else:
+                pass
         return None
     def read_words (self, path):
-        self.words = file.read_words(path)
+        try:
+            self.words = file.read_words(path)
+        except FileNotFoundError:
+            self.words = None
         return None
     def read_textgrid (self, path):
-        self.textgrid = file.read_textgrid(path)
+        try:
+            self.textgrid = file.read_textgrid(path)
+        except FileNotFoundError:
+            self.textgrid = None
         return None
     def vec_to_imgs (self):
         self.imgs = image.vec_to_imgs(self.vector, self.NumVectors, self.PixPerVector)
@@ -56,7 +68,24 @@ class Recording:
         self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
         return None
     def integrate_segments (self):
-        self.df = dataframe.integrate_segments(self.df, self.phones, self.words)
+        try:
+            c1 = not self.phones is None
+            c2 = not self.words is None
+            cond1 = all([c1,c2])
+        except AttributeError:
+            cond1 = False
+        try:
+            cond2 = not self.textgrid is None
+        except AttributeError:
+            cond2 = False
+
+        if cond1:
+            self.df = dataframe.integrate_segments(self.df, self.phones, self.words)
+        elif cond2:
+            self.textgrid_to_alignfiles()
+            self.df = dataframe.integrate_segments(self.df, self.phones, self.words)
+        else:
+            print('WARNING: There is no .TextGrid, .phones, .phoneswithQ, or .words available. Therefore, the result dataframe does not contain segment information.')
         return None
     def integrate_splines (self):
         if not hasattr(self, 'fitted_values'):

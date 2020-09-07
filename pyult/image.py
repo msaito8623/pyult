@@ -25,7 +25,8 @@ def crop (imgs, crop_points):
         ymax = ylen-1 if ymax is None else ymax
         img = img[ymin:(ymax+1), xmin:(xmax+1)]
         return img
-    imgs = [ __crop2d(i, crop_points) for i in imgs ]
+    if not crop_points is None:
+        imgs = [ __crop2d(i, crop_points) for i in imgs ]
     imgs = np.array(imgs)
     return imgs
 
@@ -47,25 +48,28 @@ def add_crop_line (imgs, crop_points):
         img[:,xmin,:] = (0,0,255) 
         img[:,xmax,:] = (0,0,255) 
         return img
-    imgs = [ __crop2d(i, crop_points) for i in imgs ]
+    if not crop_points is None:
+        imgs = [ __crop2d(i, crop_points) for i in imgs ]
     imgs = np.array(imgs)
     return imgs
 
 def flip (imgs, direct):
-    if direct=='x':
-        direct = 1
-    elif direct=='y':
-        direct = 0
-    elif direct=='xy':
-        direct = (0,1)
-    else:
-        raise ValueError('The second argument "direct" should be "x", "y", or "xy".')
-    imgs = [ np.flip(i, direct) for i in imgs ]
+    if not direct is None:
+        if direct=='x':
+            direct = 1
+        elif direct=='y':
+            direct = 0
+        elif direct=='xy':
+            direct = (0,1)
+        else:
+            raise ValueError('The second argument "direct" should be "x", "y", or "xy".')
+        imgs = [ np.flip(i, direct) for i in imgs ]
     imgs = np.array(imgs)
     return imgs
 
 def reduce_y (imgs, every_nth):
-    imgs = [ i[::every_nth, :] for i in imgs ]
+    if not every_nth is None:
+        imgs = [ i[::every_nth, :] for i in imgs ]
     imgs = np.array(imgs)
     return imgs
 

@@ -119,6 +119,7 @@ def textgrid_to_alignfiles ( textgridlist ):
         if len(line)==3:
             ret = list(np.array(line)[[0,2]])
             ret = pd.DataFrame([ret], columns=['end',typ])
+            ret['end'] = ret['end'].astype(float)
         else:
             ret = None
         return ret
