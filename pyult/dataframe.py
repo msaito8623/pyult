@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 def imgs_to_df (imgs, fps=None):
     imgs = [ img_to_df(img=i, frame_id=frame) for frame,i in enumerate(imgs) ]
@@ -67,4 +68,61 @@ def integrate_splines ( df, splvals ):
     splvals = pd.concat(splvals, ignore_index=True)
     df = pd.merge(df, splvals, on=['frame','x'], how='left')
     return df
+
+def textgrid_to_alignfiles ( textgridlist ):
+    def _temp ( xxx ):
+        xxx = np.array(xxx)
+        xxx = xxx[3:]
+        if len(xxx)%3!=0:
+            raise ValueError('Something is wrong in the format of the input textgrid.')
+        xmins = np.arange(0, len(xxx), 3)
+        xmaxs = np.arange(1, len(xxx), 3)
+        texts = np.arange(2, len(xxx), 3)
+        xmins = xxx[xmins]
+        xmaxs = xxx[xmaxs]
+        texts = xxx[texts]
+        xmins = [ '{:8.6f}'.format(float(i)) for i in xmins ]
+        xmaxs = [ '{:8.6f}'.format(float(i)) for i in xmaxs ]
+        texts = [ i.strip('\"') for i in texts ]
+        df = pd.DataFrame({'xmin':xmins, 'xmax':xmaxs, 'text':texts})
+        return df
+
+    lines = np.array(textgridlist)
+    keys = ['segments', 'words', 'xmin', 'xmax', 'text']
+    pos = []
+    for i in keys:
+        pos = pos + [ j for j,k in enumerate(lines) if i in k ]
+    pos = sorted(list(set(pos)))
+    lines = lines[pos]
+
+    pos = [ i for i,j in enumerate(lines) if ('segments' in j) or ('words' in j) ]
+    if len(pos)!=2 :
+        print('WARNING: Multiple lines matched "segments" and "words" in a textgrid file.')
+
+    segments = lines[pos[0]:pos[1]]
+    words = lines[pos[1]:]
+    segments = [ i.strip() for i in segments ]
+    words = [ i.strip() for i in words ]
+    segments = [ i.split(' = ')[1] for i in segments ]
+    words = [ i.split(' = ')[1] for i in words ]
+    segments = _temp(segments)
+    words = _temp(words)
+    segments = [ i + ' 000 ' + j for i,j in zip(segments.xmax, segments.text) ]
+    words = [ i + ' 000 ' + j for i,j in zip(words.xmax, words.text) ]
+    segments = ['#'] + segments
+    words = ['#'] + words
+    segments = [ i + '\n' for i in segments ]
+    words = [ i + '\n' for i in words ]
+
+    def __todf (line, typ):
+        line = line.split(' ')
+        if len(line)==3:
+            ret = list(np.array(line)[[0,2]])
+            ret = pd.DataFrame([ret], columns=['end',typ])
+        else:
+            ret = None
+        return ret
+    segments = pd.concat([ __todf(i, 'segment') for i in segments ], ignore_index=True)
+    words = pd.concat([ __todf(i, 'word') for i in words], ignore_index=True)
+    return {'phones':segments, 'words':words}
 

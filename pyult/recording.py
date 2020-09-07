@@ -26,6 +26,9 @@ class Recording:
     def read_words (self, path):
         self.words = file.read_words(path)
         return None
+    def read_textgrid (self, path):
+        self.textgrid = file.read_textgrid(path)
+        return None
     def vec_to_imgs (self):
         self.imgs = image.vec_to_imgs(self.vector, self.NumVectors, self.PixPerVector)
         return None
@@ -59,4 +62,9 @@ class Recording:
         if not hasattr(self, 'fitted_values'):
             self.fit_spline(set_fitted_values=True)
         self.df = dataframe.integrate_splines(self.df, self.fitted_values)
+        return None
+    def textgrid_to_alignfiles (self):
+        aligns = dataframe.textgrid_to_alignfiles(self.textgrid)
+        self.phones = aligns['phones']
+        self.words= aligns['words']
         return None

@@ -9,25 +9,25 @@ TEST_ROOT = os.path.dirname(__file__)
 
 def test_read_ult ():
     obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample.ult')
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
     obj.read_ult(path)
     assert hasattr(obj, 'vector')
 
 def test_read_ustxt ():
     obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ustxt(path)
     assert len(obj.__dict__)==10
 
 def test_read_txt ():
     obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample.txt')
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.txt')
     obj.read_txt(path)
     assert len(obj.__dict__)==3
 
 def test_read_phones ():
     obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample.phoneswithQ')
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
     obj.read_phones(path)
     cond1 = len(obj.phones)==13
     cond2 = obj.phones.loc[10,'end']==1.51
@@ -35,16 +35,24 @@ def test_read_phones ():
 
 def test_read_words ():
     obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample.words')
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
     obj.read_words(path)
     cond1 = len(obj.words)==7
     cond2 = obj.words.loc[3,'end']==0.93
     assert all([cond1, cond2])
 
+def test_read_textgrid ():
+    obj = recording.Recording()
+    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.TextGrid')
+    obj.read_textgrid(path)
+    cond1 = isinstance(obj.textgrid, list)
+    cond2 = len(obj.textgrid)>0
+    assert all([cond1, cond2])
+
 def test_vec_to_imgs ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -52,8 +60,8 @@ def test_vec_to_imgs ():
 
 def test_crop ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -62,8 +70,8 @@ def test_crop ():
 
 def test_add_crop_line ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -74,8 +82,8 @@ def test_add_crop_line ():
 
 def test_flip_x ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -86,8 +94,8 @@ def test_flip_x ():
 
 def test_flip_y ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -98,8 +106,8 @@ def test_flip_y ():
     
 def test_flip_xy ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -114,8 +122,8 @@ def test_flip_xy ():
 
 def test_reduce_y ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -128,8 +136,8 @@ def test_reduce_y ():
 
 def test_fit_spline_without_fitted_values ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -143,8 +151,8 @@ def test_fit_spline_without_fitted_values ():
 
 def test_fit_spline_with_fitted_values ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -154,8 +162,8 @@ def test_fit_spline_with_fitted_values ():
 
 def test_imgs_to_df ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -169,10 +177,10 @@ def test_imgs_to_df ():
 
 def test_integrate_segments ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
-    phonespath = os.path.join(TEST_ROOT, 'resources/sample.phoneswithQ')
-    wordspath = os.path.join(TEST_ROOT, 'resources/sample.words')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    phonespath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
+    wordspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.read_phones(phonespath)
@@ -189,8 +197,8 @@ def test_integrate_segments ():
 
 def test_integrate_splines ():
     obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sampleUS.txt')
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
     obj.read_ult(ultpath)
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
@@ -199,6 +207,15 @@ def test_integrate_splines ():
     obj.integrate_splines()
     cond1 = 'y_spline' in obj.df.columns
     cond2 = len(set(obj.df.y_spline.dropna())) == 68
+    assert all([cond1, cond2])
+
+def test_textgrid_to_alignfiles ():
+    obj = recording.Recording()
+    tgpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.TextGrid')
+    obj.read_textgrid(tgpath)
+    obj.textgrid_to_alignfiles()
+    cond1 = hasattr(obj, 'phones')
+    cond2 = hasattr(obj, 'words')
     assert all([cond1, cond2])
 
 

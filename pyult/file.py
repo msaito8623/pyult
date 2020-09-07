@@ -28,5 +28,8 @@ def read_words (path):
     colns = ['end','word']
     dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
     return dat
-
+def read_textgrid (path):
+    with open(path, 'r') as f:
+        lines = f.readlines()
+    return lines
 
