@@ -1,6 +1,8 @@
+import os
 import pyult.file as file
 import pyult.image as image 
 import pyult.dataframe as dataframe
+from pathlib import Path
 
 class Recording:
     def __init__ (self):
@@ -105,6 +107,17 @@ class Recording:
             self.fans = image.to_fan(self.imgs, magnify=magnify, show_progress=show_progress)
         else:
             self.fans = image.to_fan(self.imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors, magnify=magnify, show_progress=show_progress)
+        return None
+    def write_video (self, audiopath, outpath='./video.avi'):
+        vtemp = Path(outpath)
+        vtemp = str(vtemp.parent) + '/' + vtemp.stem + '_temp' + vtemp.suffix
+        atemp = Path(audiopath)
+        atemp = str(atemp.parent) + '/' + atemp.stem + '_temp' + atemp.suffix
+        image._temp_video(self.imgs, self.FramesPerSec, vtemp)
+        image._temp_audio(audiopath, self.FramesPerSec, atemp, self.TimeInSecsOfFirstFrame)
+        image.sync_audio_video(vtemp, atemp, outpath)
+        os.remove(vtemp)
+        os.remove(atemp)
         return None
 
 

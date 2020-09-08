@@ -4,6 +4,7 @@ import pyult.ncspline as spl
 from scipy import ndimage
 import math
 from tqdm import tqdm
+import subprocess
 
 
 def vec_to_imgs (vector, number_of_vectors, pixel_per_vector):
@@ -346,6 +347,38 @@ def trim_picture(img):
     return img
 ### Fanshape (UNTIL HERE) ###
 
+
+def _temp_video ( imgs, fps, outpath='./video.avi' ):
+    fps = int(fps)
+    imgs = [ i for i in imgs ]
+    if len(imgs)==1:
+        print('WARNING: No video is produced because only an single image is provided.')
+        return None
+    img_shape = imgs[0].shape
+    height = img_shape[0]
+    width = img_shape[1]
+    is_grayscale = len(img_shape)==2
+    if is_grayscale:
+        imgs = [ cv2.cvtColor(i, cv2.COLOR_GRAY2BGR) for i in imgs ]
+    fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    out = cv2.VideoWriter(outpath, fourcc, fps, (width, height))
+    for i in imgs:
+        out.write(i)
+    out.release()
+    return None
+
+def _temp_audio (inpath, fps, outpath='', trim_beginning=0):
+    if outpath=='':
+        inpath = Path(inpath)
+        outpath = str(inpath.parent) + '/' + inpath.stem + '_temp' + inpath.suffix
+    cmd = ['sox', inpath, outpath, 'trim', str(trim_beginning), 'rate', '16000']
+    subprocess.call(cmd)
+    return None
+
+def sync_audio_video ( invideo, inaudio, outvideo ):
+    cmd = ['ffmpeg', '-i', invideo, '-i', inaudio, '-c:v', 'copy', '-c:a', 'aac', outvideo]
+    subprocess.call(cmd)
+    return None
 
 
 

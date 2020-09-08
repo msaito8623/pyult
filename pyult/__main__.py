@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-d', '--directory', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
 
-parser.add_argument('-t', '--task', help='What should the script do? "df", "raw", "squ", or "fan" for dataframes, raw rectangle images, square images, and fan-shaped images each.')
+parser.add_argument('-t', '--task', help='What should the script do? "df", "raw", "squ", "fan", "video" for dataframes, raw rectangle images, square images, fan-shaped images, and videos each.')
 
 parser.add_argument('-v', '--verbose', action='store_true', help='If provided, problems in the specified directory are displayed (if any).')
 
@@ -43,6 +43,7 @@ def main (directory, task, verbose, cores, crop, flip, resolution, spline, magni
 def execute_task (par_args):
     wdir, stem, task, crop, flip, resol, spl, magnify = par_args
     pdir = wdir + '/Pictures'
+    pdir = wdir + '/Videos'
     obj = recording.Recording()
     obj.read_ult(file.find_target_file(wdir, stem, '\\.ult$'))
     obj.read_ustxt(file.find_target_file(wdir, stem, 'US\\.txt$'))
@@ -84,6 +85,10 @@ def execute_task (par_args):
             suffix = str(i).zfill(digits)
             opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
             cv2.imwrite(opath, j)
+    if task=='video':
+        apath = file.find_target_file(wdir, stem, '\\.wav$')
+        vpath = wdir + '/' + stem + '.avi'
+        obj.write_video(apath, vpath)
     return None
 
 if __name__ == '__main__':
@@ -92,6 +97,9 @@ if __name__ == '__main__':
     if args.task in ['raw', 'squ', 'fan']:
         pdir = '{}/Pictures'.format(args.directory)
         os.makedirs(pdir, exist_ok=True)
+    if args.task in ['video']:
+        vdir = '{}/Videos'.format(args.directory)
+        os.makedirs(vdir, exist_ok=True)
     cores = 1 if args.cores is None else int(args.cores)
     magnify = 1 if args.magnify is None else int(args.magnify)
     main(args.directory, args.task, args.verbose, cores, args.crop, args.flip, args.resolution, args.spline, magnify)
