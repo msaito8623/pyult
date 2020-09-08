@@ -3,6 +3,7 @@ import cv2
 import pyult.ncspline as spl
 from scipy import ndimage
 import math
+from tqdm import tqdm
 
 
 def vec_to_imgs (vector, number_of_vectors, pixel_per_vector):
@@ -29,6 +30,10 @@ def crop (imgs, crop_points):
         img = img[ymin:(ymax+1), xmin:(xmax+1)]
         return img
     if not crop_points is None:
+        if isinstance(crop_points, str):
+            crop_points = crop_points.split(',')
+            crop_points = [ int(i) for i in crop_points if i!='' ]
+            crop_points = tuple(crop_points)
         imgs = [ __crop2d(i, crop_points) for i in imgs ]
     imgs = np.array(imgs)
     return imgs
@@ -72,6 +77,8 @@ def flip (imgs, direct):
 
 def reduce_y (imgs, every_nth):
     if not every_nth is None:
+        if isinstance(every_nth, str):
+            every_nth = int(every_nth)
         imgs = [ i[::every_nth, :] for i in imgs ]
     imgs = np.array(imgs)
     return imgs
@@ -247,8 +254,11 @@ def to_square (imgs):
 
 
 ### Fanshape (FROM HERE) ###
-def to_fan (imgs, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800):
-    imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+def to_fan (imgs, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800, show_progress=False ):
+    if show_progress:
+        imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
+    else:
+        imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
     return np.array(imgs)
 
 def to_fan_2d (img, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800):

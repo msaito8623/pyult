@@ -1,4 +1,6 @@
+import os
 import pandas as pd
+import cv2
 from multiprocessing import Pool
 from pathlib import Path
 from pyult import file
@@ -7,6 +9,8 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-d', '--directory', help='Path to a directory, which should have all the relevant files, e.g. xxxxUS.txt')
+
+parser.add_argument('-t', '--task', help='What should the script do? "df", "raw", "squ", or "fan" for dataframes, raw rectangle images, square images, and fan-shaped images each.')
 
 parser.add_argument('-v', '--verbose', action='store_true', help='If provided, problems in the specified directory are displayed (if any).')
 
@@ -20,22 +24,25 @@ parser.add_argument('-r', '--resolution', help='How much to reduce resolution al
 
 parser.add_argument('-s', '--spline', action='store_true', help='If provided, spline curves are fitted to each frame and included in the products, e.g. dataframe.')
 
+parser.add_argument('-m', '--magnify', help='How much to magnify resultant fan-shape images, e.g. "2" means about twice bigger (for width and height).')
+
 args = parser.parse_args()
 
 
-def main (directory, verbose, cores, crop, flip, resolution, spline):
+def main (directory, task, verbose, cores, crop, flip, resolution, spline, magnify):
     if not file.check_wdir(directory, verbose):
         e1 = 'The directory specified is not ready for preprocessing of ultrasound images.\n'
         e2 = 'Use --verbose, to see what is wrong in the directory.'
         raise ValueError(e1+e2)
     stems = file.unique_target_stems(directory)
-    stems = [ (directory, i, crop, flip, resolution, spline) for i in stems ]
+    stems = [ (directory, i, task, crop, flip, resolution, spline, magnify) for i in stems ]
     pool = Pool(cores)
-    pool.map(task, stems)
+    pool.map(execute_task, stems)
     return None
 
-def task (par_args):
-    wdir, stem, crop, flip, resol, spl = par_args
+def execute_task (par_args):
+    wdir, stem, task, crop, flip, resol, spl, magnify = par_args
+    pdir = wdir + '/Pictures'
     obj = recording.Recording()
     obj.read_ult(file.find_target_file(wdir, stem, '\\.ult$'))
     obj.read_ustxt(file.find_target_file(wdir, stem, 'US\\.txt$'))
@@ -50,16 +57,41 @@ def task (par_args):
     obj.reduce_y(resol)
     if spl:
         obj.fit_spline(set_fitted_values=True)
-    obj.imgs_to_df()
-    obj.integrate_segments()
-    if spl:
-        obj.integrate_splines()
-    opath = '{}/{}.gz'.format(wdir, stem)
-    obj.df.to_csv(opath, sep='\t', index=False)
+    if task=='df':
+        obj.imgs_to_df()
+        obj.integrate_segments()
+        if spl:
+            obj.integrate_splines()
+        opath = '{}/{}.gz'.format(wdir, stem)
+        obj.df.to_csv(opath, sep='\t', index=False)
+    if task=='raw':
+        digits = len(str(len(obj.imgs)))
+        for i,j in enumerate(obj.imgs):
+            suffix = str(i).zfill(digits)
+            opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+            cv2.imwrite(opath, j)
+    if task=='squ':
+        obj.square_imgs()
+        digits = len(str(len(obj.squares)))
+        for i,j in enumerate(obj.squares):
+            suffix = str(i).zfill(digits)
+            opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+            cv2.imwrite(opath, j)
+    if task=='fan':
+        obj.to_fan(magnify=int(magnify), show_progress=True)
+        digits = len(str(len(obj.fans)))
+        for i,j in enumerate(obj.fans):
+            suffix = str(i).zfill(digits)
+            opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+            cv2.imwrite(opath, j)
     return None
 
 if __name__ == '__main__':
     if args.directory is None:
         raise ValueError('Please specify the target directory, where all the necessary files should be ready, e.g. xxx.ult')
+    if args.task in ['raw', 'squ', 'fan']:
+        pdir = '{}/Pictures'.format(args.directory)
+        os.makedirs(pdir, exist_ok=True)
     cores = 1 if args.cores is None else int(args.cores)
-    main(args.directory, args.verbose, cores, args.crop, args.flip, args.resolution, args.spline)
+    magnify = 1 if args.magnify is None else int(args.magnify)
+    main(args.directory, args.task, args.verbose, cores, args.crop, args.flip, args.resolution, args.spline, magnify)

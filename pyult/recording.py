@@ -100,11 +100,11 @@ class Recording:
     def square_imgs (self):
         self.squares = image.to_square(self.imgs)
         return None
-    def to_fan (self, general_parameters=False):
+    def to_fan (self, general_parameters=False, magnify=1, show_progress=False ):
         if general_parameters:
-            self.fans = image.to_fan(self.imgs)
+            self.fans = image.to_fan(self.imgs, magnify=magnify, show_progress=show_progress)
         else:
-            self.fans = image.to_fan(self.imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors)
+            self.fans = image.to_fan(self.imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors, magnify=magnify, show_progress=show_progress)
         return None
 
 
