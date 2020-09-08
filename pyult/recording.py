@@ -97,3 +97,14 @@ class Recording:
         self.phones = aligns['phones']
         self.words= aligns['words']
         return None
+    def square_imgs (self):
+        self.squares = image.to_square(self.imgs)
+        return None
+    def to_fan (self, general_parameters=False):
+        if general_parameters:
+            self.fans = image.to_fan(self.imgs)
+        else:
+            self.fans = image.to_fan(self.imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors)
+        return None
+
+

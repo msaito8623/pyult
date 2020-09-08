@@ -218,7 +218,44 @@ def test_textgrid_to_alignfiles ():
     cond2 = hasattr(obj, 'words')
     assert all([cond1, cond2])
 
+def test_square_imgs ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.square_imgs()
+    cond1 = hasattr(obj, 'squares')
+    cond2 = all([ len(set(i.shape))==1 for i in obj.squares ])
+    assert all([cond1, cond2])
 
+def test_to_fan ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.to_fan()
+    img1 = obj.fans[100]
+    samplefan = os.path.join(TEST_ROOT, 'resources/sample_fan.png')
+    img2 = cv2.imread(samplefan, 0)
+    assert (img1==img2).all()
+
+def test_to_fan_general_parameters ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    obj.imgs = obj.imgs[:3]
+    obj.to_fan(general_parameters=True)
+    img1 = obj.fans[1]
+    samplefan = os.path.join(TEST_ROOT, 'resources/sample_fan2.png')
+    img2 = cv2.imread(samplefan, 0)
+    assert (img1==img2).all()
 
 
 
