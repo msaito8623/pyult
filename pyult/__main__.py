@@ -43,7 +43,7 @@ def main (directory, task, verbose, cores, crop, flip, resolution, spline, magni
 def execute_task (par_args):
     wdir, stem, task, crop, flip, resol, spl, magnify = par_args
     pdir = wdir + '/Pictures'
-    pdir = wdir + '/Videos'
+    vdir = wdir + '/Videos'
     obj = recording.Recording()
     obj.read_ult(file.find_target_file(wdir, stem, '\\.ult$'))
     obj.read_ustxt(file.find_target_file(wdir, stem, 'US\\.txt$'))
