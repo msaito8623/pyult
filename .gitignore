@@ -1,3 +1,5 @@
 *__pycache__*
 pyult.egg-info/
 *.swp
+tests_archives/
+pyult/Archives/

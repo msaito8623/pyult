@@ -1,9 +1,0 @@
-NumVectors=64
-PixPerVector=923
-ZeroOffset=264
-BitsPerPixel=8
-Angle=0.025
-Kind=1
-PixelsPerMm=13.186
-FramesPerSec=95.032
-TimeInSecsOfFirstFrame=0.07300
