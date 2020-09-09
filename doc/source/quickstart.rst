@@ -87,11 +87,13 @@ Ultrasound images are inherently very thin rectangles with greater ranges for y-
 Currently, *pyult* supports to reduce y-axis length by taking every *n*-th pixel along y-axis. Accordingly, if you would like to take every 3rd pixel along y-axis to compress the size of the produced dataframes into one third of the original, then...:
 
 .. code:: bash
+
     python -m pyult -d /foo/bar -t df -r 3
 
 Likewise, you can produce fan-shaped images with its y-axis length one fifth of the original by the following:
 
 .. code:: bash
+
     python -m pyult -d /foo/bar -t fan -r 5
 
 
@@ -103,6 +105,7 @@ Sometimes, some regions of ultrasound images are not given the main focus. Recor
 Cropping of images can be achieved by the option "-cr (--crop)". Minimum and maximum values along x- and y-axis should be given in the format such as "minX,maxX,minY,maxY" without any space. So, for example, the following command produces the cropped images, where x-axis values start at the 10th pixel and ends at the 50th pixel of the original images, and where y-axis starts at the 120th pixel and ends at the 600th pixel of the orignal images:
 
 .. code:: bash
+
     python -m pyult -d /foo/bar -t fan -cr 10,50,120,600
 
 
@@ -112,6 +115,7 @@ Fitting spline curves
 Recording tongue movements, the main attention is sometimes given only to the tongue surface positions. Although *pyult* is designed for the analysis of the whole ultrasound images, rather than focusing on the tongue surfaces, it is also possible with *pyult* to find and fit spline curves on the tongue surfaces. For the spline fitting, simply feed "-s (--spline)" as below:
 
 .. code:: bash
+
     python -m pyult -d /foo/bar -t fan -s
 
 
@@ -136,6 +140,7 @@ Preprocessing by *pyult*, introduced above, can be carried out in parallel for e
 then you can parallelize the preprocessing by 2 cores at most (with -co or --cores):
 
 .. code:: bash
+
     python -m pyult -d /foo/bar -t fan -co 2
 
 
