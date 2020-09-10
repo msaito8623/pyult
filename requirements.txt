@@ -2,7 +2,6 @@ joblib
 numpy
 opencv-python
 pandas
-pytest
 python-dateutil
 pytz
 scikit-learn
