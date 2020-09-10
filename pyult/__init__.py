@@ -20,7 +20,7 @@ __classifiers__ = [
     'Development Status :: 3 - Alpha',
     'Environment :: Console',
     'Intended Audience :: Science/Research',
-    'License :: MIT License',
+    'License :: OSI Approved :: MIT License',
     'Operating System :: POSIX :: Linux',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3.7',

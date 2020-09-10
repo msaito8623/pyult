@@ -4,3 +4,4 @@ pyult.egg-info/
 tests_archives/
 pyult/Archives/
 build/
+dist/
