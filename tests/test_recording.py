@@ -195,6 +195,22 @@ def test_integrate_segments ():
     samplegz = samplegz.round(10)
     assert (obj.df==samplegz).all().all()
 
+def test_rmv_noise ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    phonespath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
+    wordspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.read_phones(phonespath)
+    obj.read_words(wordspath)
+    obj.vec_to_imgs()
+    obj.imgs_to_df()
+    obj.integrate_segments()
+    obj.rmv_noise()
+    assert len(set(obj.df.word)) == 2
+
 def test_integrate_splines ():
     obj = recording.Recording()
     ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')

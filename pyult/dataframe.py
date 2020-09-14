@@ -111,8 +111,6 @@ def textgrid_to_alignfiles ( textgridlist ):
     words = [ i + ' 000 ' + j for i,j in zip(words.xmax, words.text) ]
     segments = ['#'] + segments
     words = ['#'] + words
-    segments = [ i + '\n' for i in segments ]
-    words = [ i + '\n' for i in words ]
 
     def __todf (line, typ):
         line = line.split(' ')

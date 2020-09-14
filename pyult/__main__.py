@@ -64,6 +64,7 @@ def execute_task (par_args):
         obj.integrate_segments()
         if spl:
             obj.integrate_splines()
+        obj.rmv_noise()
         opath = '{}/{}.gz'.format(ddir, stem)
         obj.df.to_csv(opath, sep='\t', index=False)
     if task=='raw':

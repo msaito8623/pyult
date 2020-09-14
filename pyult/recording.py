@@ -89,6 +89,9 @@ class Recording:
         else:
             print('WARNING: There is no .TextGrid, .phones, .phoneswithQ, or .words available. Therefore, the result dataframe does not contain segment information.')
         return None
+    def rmv_noise (self):
+        self.df = dataframe.rmv_noise(self.df)
+        return None
     def integrate_splines (self):
         if not hasattr(self, 'fitted_values'):
             self.fit_spline(set_fitted_values=True)
