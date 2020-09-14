@@ -58,7 +58,7 @@ def execute_task (par_args):
     obj.flip(flip)
     obj.reduce_y(resol)
     if spl:
-        obj.fit_spline(set_fitted_values=True)
+        obj.fit_spline(fitted_images=True,fitted_values=True)
     if task=='df':
         obj.imgs_to_df()
         obj.integrate_segments()
@@ -67,6 +67,8 @@ def execute_task (par_args):
         obj.rmv_noise()
         opath = '{}/{}.gz'.format(ddir, stem)
         obj.df.to_csv(opath, sep='\t', index=False)
+    if hasattr(obj, 'splimgs'):
+        obj.imgs = obj.splimgs
     if task=='raw':
         digits = len(str(len(obj.imgs)))
         for i,j in enumerate(obj.imgs):
