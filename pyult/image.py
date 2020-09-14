@@ -212,7 +212,10 @@ def peaks ( vect, howmany=3 ):
     peak_poses = np.array(list(peak_dict.keys()))
     peak_vals = np.array(list(peak_dict.values()))
     aaa = np.sort(peak_vals)[::-1][:2]
-    peak_ratio = aaa[0]/aaa[1]
+    try:
+        peak_ratio = aaa[0]/aaa[1]
+    except IndexError:
+        peak_ratio = 0
     return {'peak_poses':peak_poses, 'peak_vals':peak_vals, 'peak_ratio':peak_ratio}
 
 def deriv_discrete ( vect ):
