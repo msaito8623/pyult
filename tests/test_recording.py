@@ -222,7 +222,7 @@ def test_integrate_splines ():
     obj.imgs_to_df()
     obj.integrate_splines()
     cond1 = 'y_spline' in obj.df.columns
-    cond2 = len(set(obj.df.y_spline.dropna())) == 68
+    cond2 = len(set(obj.df.y_spline.dropna())) == 65
     assert all([cond1, cond2])
 
 def test_textgrid_to_alignfiles ():

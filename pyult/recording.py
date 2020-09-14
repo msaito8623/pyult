@@ -98,7 +98,7 @@ class Recording:
         return None
     def integrate_splines (self):
         if not hasattr(self, 'fitted_values'):
-            self.fit_spline(set_fitted_values=True)
+            self.fit_spline(fitted_images=False, fitted_values=True)
         self.df = dataframe.integrate_splines(self.df, self.fitted_values)
         return None
     def textgrid_to_alignfiles (self):
