@@ -44,6 +44,7 @@ def execute_task (par_args):
     wdir, stem, task, crop, flip, resol, spl, magnify = par_args
     pdir = wdir + '/Pictures'
     vdir = wdir + '/Videos'
+    ddir = wdir + '/Dataframes'
     obj = recording.Recording()
     obj.read_ult(file.find_target_file(wdir, stem, '\\.ult$'))
     obj.read_ustxt(file.find_target_file(wdir, stem, 'US\\.txt$'))
@@ -63,7 +64,7 @@ def execute_task (par_args):
         obj.integrate_segments()
         if spl:
             obj.integrate_splines()
-        opath = '{}/{}.gz'.format(wdir, stem)
+        opath = '{}/{}.gz'.format(ddir, stem)
         obj.df.to_csv(opath, sep='\t', index=False)
     if task=='raw':
         digits = len(str(len(obj.imgs)))
@@ -100,6 +101,9 @@ if __name__ == '__main__':
     if args.task in ['video']:
         vdir = '{}/Videos'.format(args.directory)
         os.makedirs(vdir, exist_ok=True)
+    if args.task in ['df']:
+        ddir = '{}/Dataframes'.format(args.directory)
+        os.makedirs(ddir, exist_ok=True)
     cores = 1 if args.cores is None else int(args.cores)
     magnify = 1 if args.magnify is None else int(args.magnify)
     main(args.directory, args.task, args.verbose, cores, args.crop, args.flip, args.resolution, args.spline, magnify)
