@@ -134,7 +134,7 @@ def test_reduce_y ():
     cond2 = all(obj.imgs[0,:,0] == tesvec)
     assert all([cond1, cond2])
 
-def test_fit_spline_without_fitted_values ():
+def test_fit_spline_images ():
     obj = recording.Recording()
     ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
     uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
@@ -142,14 +142,14 @@ def test_fit_spline_without_fitted_values ():
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
-    obj.fit_spline(set_fitted_values=False)
-    cond1 = obj.imgs.shape == (2, 842, 64, 3)
+    obj.fit_spline()
+    cond1 = obj.splimgs.shape == (2, 842, 64, 3)
     figpath = os.path.join(TEST_ROOT, 'resources/sample_spline.png')
     img = cv2.imread(figpath, 1)
-    cond2 = (obj.imgs[1] == img).all()
+    cond2 = (obj.splimgs[1] == img).all()
     assert all([cond1, cond2])
 
-def test_fit_spline_with_fitted_values ():
+def test_fit_spline_values ():
     obj = recording.Recording()
     ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
     uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
@@ -157,7 +157,7 @@ def test_fit_spline_with_fitted_values ():
     obj.read_ustxt(uspath)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
-    obj.fit_spline(set_fitted_values=True)
+    obj.fit_spline(fitted_images=False, fitted_values=True)
     assert hasattr(obj, 'fitted_values')
 
 def test_imgs_to_df ():

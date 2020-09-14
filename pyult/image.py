@@ -87,29 +87,39 @@ def reduce_y (imgs, every_nth):
     return imgs
 
 ### Functions for fitting spline curves (FROM HERE) ###
-def fit_spline (imgs, return_fitted_values=False):
-    imgs = [ fit_spline_2d(i, return_fitted_values) for i in imgs ]
-    if return_fitted_values:
-        images = [ i['image'] for i in imgs ]
-        ftvs = [ i['fitted_values'] for i in imgs ]
+def fit_spline (imgs, return_values=False, return_imgs=True):
+    imgs = [ fit_spline_2d(i, return_values, return_imgs) for i in imgs ]
+    if return_imgs and return_values:
+        images = [ i['image']         for i in imgs ]
+        ftvs   = [ i['fitted_values'] for i in imgs ]
         ret = {'images':np.array(images), 'fitted_values':ftvs}
-    else:
+    elif (not return_imgs) and return_values:
+        ret = imgs
+    elif return_imgs and (not return_values):
         ret = np.array(imgs)
+    else:
+        ret = None
     return ret
 
-def fit_spline_2d (img, return_fitted_values=False):
+def fit_spline_2d (img, return_values=False, return_imgs=True):
     ftv = get_fitted_values(img)
     yyy = ftv['fitted_values']
     xxx = ftv['index']
-    img = img.astype('uint8')
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    for xpos,ypos in zip(xxx, yyy):
-        if not ypos is None:
-            img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
-    if return_fitted_values:
+    if return_imgs:
+        img = img.astype('uint8')
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        for xpos,ypos in zip(xxx, yyy):
+            if not ypos is None:
+                img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
+
+    if return_imgs and return_values:
         ret = {'image':img, 'fitted_values':ftv}
-    else:
+    elif (not return_imgs) and return_values:
+        ret = ftv
+    elif return_imgs and (not return_values):
         ret = img
+    else:
+        ret = None
     return ret
 
 def get_fitted_values (img):

@@ -58,13 +58,17 @@ class Recording:
     def reduce_y (self, every_nth):
         self.imgs = image.reduce_y(self.imgs, every_nth)
         return None
-    def fit_spline (self, set_fitted_values=False):
-        imgs_ftvs = image.fit_spline(self.imgs, set_fitted_values)
-        if set_fitted_values:
-            self.imgs = imgs_ftvs['images']
+    def fit_spline (self, fitted_images=True, fitted_values=False):
+        imgs_ftvs = image.fit_spline(self.imgs, fitted_values, fitted_images)
+        if fitted_images and fitted_values:
+            self.splimgs = imgs_ftvs['images']
             self.fitted_values = imgs_ftvs['fitted_values']
+        elif (not fitted_images) and fitted_values:
+            self.fitted_values = imgs_ftvs
+        elif fitted_images and (not fitted_values):
+            self.splimgs = imgs_ftvs
         else:
-            self.imgs = imgs_ftvs
+            pass
         return None
     def imgs_to_df (self):
         self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
