@@ -33,6 +33,8 @@ def crop (imgs, crop_points):
     if not crop_points is None:
         if isinstance(crop_points, str):
             crop_points = crop_points.split(',')
+            defaults = [0,imgs[0].shape[1], 0, imgs[0].shape[0]]
+            crop_points = [ defaults[i] if j=='None' else j for i,j in enumerate(crop_points) ]
             crop_points = [ int(i) for i in crop_points if i!='' ]
             crop_points = tuple(crop_points)
         imgs = [ __crop2d(i, crop_points) for i in imgs ]
@@ -114,7 +116,7 @@ def get_fitted_values (img):
     pks = [ spl.fit_ncspline(img[:,i]) for i in range(img.shape[1])]
     pks = [ peaks(i) for i in pks ]
     pks = { i:j for i,j in enumerate(pks) }
-    aaa = len(pks)//4
+    aaa = len(pks)//4 # allowed_range_x
     bbb = np.arange(aaa, len(pks)-aaa)
     selpks = { i:j for i,j in pks.items() if i in bbb }
     aaa = max([ i['peak_ratio'] for i in selpks.values() ])
@@ -203,7 +205,8 @@ def peaks ( vect, howmany=3 ):
         ccc = clean_d1_0(d1_0, approx=True)
         peak_poses = ccc[d2[ccc]<0]
     peak_vals = f0[peak_poses]
-    peak_dict = { i:j for i,j in zip(peak_poses, peak_vals) if i <= len(f0)*3/4 }
+    allowed_range_y = 2/4
+    peak_dict = { i:j for i,j in zip(peak_poses, peak_vals) if i <= len(f0)*allowed_range_y }
     max_vals = np.sort(np.array(list(peak_dict.values())))[::-1][:howmany]
     peak_dict = { i:j for i,j in peak_dict.items() if j in max_vals }
     peak_poses = np.array(list(peak_dict.keys()))
