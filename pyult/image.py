@@ -141,10 +141,13 @@ def get_fitted_values (img):
     trpk[trpk_id]['peak_poses'] = mxpv['max_pos']
     trpk[trpk_id]['peak_vals'] = mxpv['max_val']
     def nearest_pos( current_pos, candidates, threshold=10000 ):
-        diff = abs(candidates - current_pos)
-        val = diff.min()
-        pos = diff.argmin()
-        pos = pos if val <= threshold else None
+        if len(candidates)==0:
+            pos = None
+        else:
+            diff = abs(candidates - current_pos)
+            val = diff.min()
+            pos = diff.argmin()
+            pos = pos if val <= threshold else None
         return pos
     threshold = img.shape[0]/10
     threshold_val = 0.5
