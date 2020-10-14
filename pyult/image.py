@@ -91,7 +91,7 @@ def fit_spline (imgs, return_values=False, return_imgs=True):
     imgs = [ fit_spline_2d(i, return_values, return_imgs) for i in imgs ]
     if return_imgs and return_values:
         images = [ i['image']         for i in imgs ]
-        ftvs   = [ i['fitted_values'] for i in imgs ]
+        ftvs   = [ None if i is None else i['fitted_values'] for i in imgs ]
         ret = {'images':np.array(images), 'fitted_values':ftvs}
     elif (not return_imgs) and return_values:
         ret = imgs
@@ -103,14 +103,20 @@ def fit_spline (imgs, return_values=False, return_imgs=True):
 
 def fit_spline_2d (img, return_values=False, return_imgs=True):
     ftv = get_fitted_values(img)
-    yyy = ftv['fitted_values']
-    xxx = ftv['index']
-    if return_imgs:
+
+    if ftv is None:
+        print('WARNING: Something is wrong with the input image. A spline curve could not be fitted. The input image is returned without a spline curve.')
         img = img.astype('uint8')
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        for xpos,ypos in zip(xxx, yyy):
-            if not ypos is None:
-                img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
+    else:
+        yyy = ftv['fitted_values']
+        xxx = ftv['index']
+        if return_imgs:
+            img = img.astype('uint8')
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            for xpos,ypos in zip(xxx, yyy):
+                if not ypos is None:
+                    img[ypos-2:ypos+2, xpos-2:xpos+2, :] = (0,0,255)
 
     if return_imgs and return_values:
         ret = {'image':img, 'fitted_values':ftv}
@@ -179,14 +185,17 @@ def get_fitted_values (img):
             cval = pks[i]['peak_vals']
     xy0 = { i:j['peak_poses'] for i,j in pks.items() }
     xy1 = { i:j for i,j in xy0.items() if not j is None }
-    y = np.array(list(xy1.values()))
-    x = np.array(list(xy1.keys()))
-    nxmin = np.array(list(xy1.keys())).astype(int).min()
-    nxmax = np.array(list(xy1.keys())).astype(int).max()
-    nx = np.arange(nxmin, nxmax+1)
-    ftv = spl.fit_ncspline(y=y, x=x, knots=10, pred_x=nx)
-    ftv = ftv.round().astype(int)
-    ftv_dict = {'index':nx, 'fitted_values':ftv}
+    if len(xy1)>1:
+        y = np.array(list(xy1.values()))
+        x = np.array(list(xy1.keys()))
+        nxmin = np.array(list(xy1.keys())).astype(int).min()
+        nxmax = np.array(list(xy1.keys())).astype(int).max()
+        nx = np.arange(nxmin, nxmax+1)
+        ftv = spl.fit_ncspline(y=y, x=x, knots=10, pred_x=nx)
+        ftv = ftv.round().astype(int)
+        ftv_dict = {'index':nx, 'fitted_values':ftv}
+    else:
+        ftv_dict = None
     return ftv_dict
 
 def peaks ( vect, howmany=3 ):

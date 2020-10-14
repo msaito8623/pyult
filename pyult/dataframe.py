@@ -59,10 +59,13 @@ def rmv_noise (df):
 def integrate_splines ( df, splvals ):
     splvals = { i:j for i,j in enumerate(splvals) if i in set(df.frame) }
     def __todf (frame, content):
-        dat = pd.DataFrame(content)
-        dat['frame'] = frame
-        dat['x'] = dat.pop('index')
-        dat['y_spline'] = dat.pop('fitted_values')
+        if content is None:
+            dat = None
+        else:
+            dat = pd.DataFrame(content)
+            dat['frame'] = frame
+            dat['x'] = dat.pop('index')
+            dat['y_spline'] = dat.pop('fitted_values')
         return dat
     splvals = [ __todf(i,j) for i,j in splvals.items() ]
     splvals = pd.concat(splvals, ignore_index=True)
