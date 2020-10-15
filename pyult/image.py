@@ -136,7 +136,11 @@ def get_fitted_values (img):
     bbb = np.arange(aaa, len(pks)-aaa)
     selpks = { i:j for i,j in pks.items() if i in bbb }
     aaa = max([ i['peak_ratio'] for i in selpks.values() ])
-    trpk = { i:j for i,j in selpks.items() if j['peak_ratio']==aaa }
+    bbb = [ i['peak_ratio']==0 for i in selpks.values() ]
+    if aaa==0 and all(bbb):
+        trpk = { i:j for i,j in selpks.items() if i==len(selpks)//2 }
+    else:
+        trpk = { i:j for i,j in selpks.items() if j['peak_ratio']==aaa }
     trpk_id = list(trpk.keys())[0]
     def max_pos_val ( dct ):
         pos = dct['peak_vals'].argmax()
