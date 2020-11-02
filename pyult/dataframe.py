@@ -48,7 +48,9 @@ def alignment_df (dfphones, dfwords):
 
 def rmv_noise (df):
     noise = ['_p:_','<P>','_NOISE_','<NOISE>']
-    colnames=['segment','word']
+    colnames = ['segment','word']
+    exist_col_pos = [ i in df.columns for i in colnames ]
+    colnames = np.array(colnames)[exist_col_pos]
     for i in colnames:
         pos1 = df[i].isin(noise)
         pos2 = df[i].isna() 
