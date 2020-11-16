@@ -96,11 +96,14 @@ def unique_target_stems (path):
     paths = [ mainpart(i.stem) for i in paths ]
     paths = sorted(list(set(paths)))
     return paths
-def find_target_file (wdir, stem, extension, no_hit_ok=True):
+def find_target_file (wdir, stem, extension, no_hit_ok=True, recursive=False):
     """
     Find a target file path from a path to the working directory, the stem of the file name, and the extension of the target file.
     """
-    paths = list(Path(wdir).glob('*{}*'.format(stem)))
+    if recursive:
+        paths = list(Path(wdir).glob('**/{}*'.format(stem)))
+    else:
+        paths = list(Path(wdir).glob('{}*'.format(stem)))
     path = [ i for i in paths if re.search(extension, str(i)) ]
     if len(path)==0:
         if no_hit_ok:

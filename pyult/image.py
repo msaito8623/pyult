@@ -30,14 +30,20 @@ def crop (imgs, crop_points):
         ymax = ylen-1 if ymax is None else ymax
         img = img[ymin:(ymax+1), xmin:(xmax+1)]
         return img
+    first_frame = imgs[0] if len(imgs.shape)==3 else imgs
     if not crop_points is None:
         if isinstance(crop_points, str):
             crop_points = crop_points.split(',')
-            defaults = [0,imgs[0].shape[1], 0, imgs[0].shape[0]]
+            defaults = [0, first_frame.shape[1], 0, first_frame.shape[0]]
             crop_points = [ defaults[i] if j=='None' else j for i,j in enumerate(crop_points) ]
             crop_points = [ int(i) for i in crop_points if i!='' ]
             crop_points = tuple(crop_points)
-        imgs = [ __crop2d(i, crop_points) for i in imgs ]
+        if len(imgs.shape)==3:
+            imgs = [ __crop2d(i, crop_points) for i in imgs ]
+        elif len(imgs.shape)==2:
+            imgs = __crop2d(imgs, crop_points)
+        else:
+            raise ValueError('Shapes of images are not compatible: 2 or 3 is acceptable.')
     imgs = np.array(imgs)
     return imgs
 
@@ -74,7 +80,12 @@ def flip (imgs, direct):
             direct = (0,1)
         else:
             raise ValueError('The second argument "direct" should be "x", "y", or "xy".')
-        imgs = [ np.flip(i, direct) for i in imgs ]
+        if len(imgs.shape)==3:
+            imgs = [ np.flip(i, direct) for i in imgs ]
+        elif len(imgs.shape)==2:
+            imgs = np.flip(imgs, direct)
+        else:
+            raise ValueError('Shapes of images are not compatible: 2 or 3 is acceptable.')
     imgs = np.array(imgs)
     return imgs
 
@@ -82,16 +93,29 @@ def reduce_y (imgs, every_nth):
     if not every_nth is None:
         if isinstance(every_nth, str):
             every_nth = int(every_nth)
-        imgs = [ i[::every_nth, :] for i in imgs ]
+        if len(imgs.shape)==3:
+            imgs = [ i[::every_nth, :] for i in imgs ]
+        elif len(imgs.shape)==2:
+            imgs = imgs[::every_nth, :]
+        else:
+            raise ValueError('Shapes of images are not compatible: 2 or 3 is acceptable.')
     imgs = np.array(imgs)
     return imgs
 
 ### Functions for fitting spline curves (FROM HERE) ###
 def fit_spline (imgs, return_values=False, return_imgs=True):
-    imgs = [ fit_spline_2d(i, return_values, return_imgs) for i in imgs ]
+    imgshape = len(imgs.shape)
+    if imgshape==3:
+        imgs = [ fit_spline_2d(i, return_values, return_imgs) for i in imgs ]
+    elif imgshape==2:
+        imgs = fit_spline_2d(imgs, return_values, return_imgs)
     if return_imgs and return_values:
-        images = [ i['image']         for i in imgs ]
-        ftvs   = [ None if i is None else i['fitted_values'] for i in imgs ]
+        if imgshape==3:
+            images = [ i['image']         for i in imgs ]
+            ftvs   = [ None if i is None else i['fitted_values'] for i in imgs ]
+        elif imgshape==2:
+            images = imgs['image']
+            ftvs = imgs['fitted_values']
         ret = {'images':np.array(images), 'fitted_values':ftvs}
     elif (not return_imgs) and return_values:
         ret = imgs

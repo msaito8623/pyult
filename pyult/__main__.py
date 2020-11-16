@@ -53,14 +53,18 @@ def execute_task (par_args):
     obj.read_phones(file.find_target_file(wdir, stem, '\\.phoneswithQ$'))
     obj.read_words(file.find_target_file(wdir, stem, '\\.words$'))
     obj.read_textgrid(file.find_target_file(wdir, stem, '\\.TextGrid$'))
+    obj.read_frames_csv(file.find_target_file(wdir, 'frames', '\\.csv', recursive=True))
     obj.vec_to_imgs()
+    if not obj.pkdframes is None:
+        c_picked_frame = int(obj.pkdframes[stem])
+        obj.imgs = obj.imgs[c_picked_frame]
     obj.crop(crop)
     obj.flip(flip)
     obj.reduce_y(resol)
     if spl:
         obj.fit_spline(fitted_images=True,fitted_values=True)
     if task=='df':
-        obj.imgs_to_df()
+        obj.imgs_to_df(frame_id=c_picked_frame)
         obj.integrate_segments()
         if spl:
             obj.integrate_splines()

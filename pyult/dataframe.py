@@ -9,7 +9,7 @@ def imgs_to_df (imgs, fps=None):
         df['time'] = df['frame'] * (1/fps)
     return df
 
-def img_to_df (img, frame_id=None):
+def img_to_df (img, frame_id=None, fps=None):
     ult  = img.flatten()
     xlen = img.shape[1]
     ylen = img.shape[0]
@@ -18,6 +18,8 @@ def img_to_df (img, frame_id=None):
     df = pd.DataFrame({'brightness':ult, 'x':xxx, 'y':yyy})
     if not frame_id is None:
         df['frame'] = frame_id
+        if not fps is None:
+            df['time'] = df['frame'] * (1/fps)
     return df
 
 def integrate_segments ( df, dfphones, dfwords, rmvnoise=True ):
@@ -59,7 +61,13 @@ def rmv_noise (df):
     return df
 
 def integrate_splines ( df, splvals ):
-    splvals = { i:j for i,j in enumerate(splvals) if i in set(df.frame) }
+    if type(splvals) is list:
+        splvals = { i:j for i,j in enumerate(splvals) if i in set(df.frame) }
+    elif type(splvals) is dict:
+        assert len(set(df.frame))==1
+        splvals = {df.frame.iloc[0]: splvals}
+    else:
+        raise ValueError('fitted_values is invalid.')
     def __todf (frame, content):
         if content is None:
             dat = None

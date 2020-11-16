@@ -43,6 +43,16 @@ class Recording:
         except FileNotFoundError:
             self.textgrid = None
         return None
+    def read_frames_csv (self, path, sep=',', header=None):
+        try:
+            with open(path, 'r') as f:
+                frms = f.readlines()
+            frms = [ i.strip().split(sep) for i in frms ]
+            frms = { i[0]:i[1] for i in frms }
+            self.pkdframes = frms
+        except FileNotFoundError:
+            self.pkdframes = None
+        return None
     def vec_to_imgs (self):
         self.imgs = image.vec_to_imgs(self.vector, self.NumVectors, self.PixPerVector)
         return None
@@ -70,8 +80,11 @@ class Recording:
         else:
             pass
         return None
-    def imgs_to_df (self):
-        self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
+    def imgs_to_df (self, frame_id=''):
+        if len(self.imgs.shape)==3:
+            self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
+        elif len(self.imgs.shape)==2:
+            self.df = dataframe.img_to_df(self.imgs, frame_id, self.FramesPerSec)
         return None
     def integrate_segments (self):
         try:
