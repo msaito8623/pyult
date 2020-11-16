@@ -5,6 +5,7 @@ from scipy import ndimage
 import math
 from tqdm import tqdm
 import subprocess
+import warnings
 
 
 def vec_to_imgs (vector, number_of_vectors, pixel_per_vector):
@@ -470,6 +471,33 @@ def sync_audio_video ( invideo, inaudio, outvideo ):
     cmd = ['ffmpeg', '-i', invideo, '-i', inaudio, '-c:v', 'copy', '-c:a', 'aac', outvideo]
     subprocess.call(cmd)
     return None
+
+def average_imgs (imgs):
+    def same_shape (imglist):
+        shps = [ i.shape for i in imglist ]
+        res = len(set(shps))==1
+        return res
+    if isinstance(imgs, list):
+        if not same_shape(imgs):
+            shps = [ i.shape for i in imgs ]
+            dim0 = max([ i[0] for i in shps ])
+            dim1 = max([ i[1] for i in shps ])
+            imgs = [ self.resize(new_xy=(dim0, dim1), img=i) for i in imgs ]
+            warnings.warn('Input images have different dimensions: they are resized, so they share the same dimensions.')
+        imgs = np.stack(imgs)
+    dimnum = len(imgs.shape)
+    if dimnum==4:# multiple RGB images
+        raise ValueError('RGB images are not available for averaging images.')
+    elif dimnum==3:
+        if imgs.shape[-1]==3:# single RGB image
+            raise ValueError('RGB images are not available for averaging images.')
+        else:# multiple grayscale images
+            mean_img = np.mean(imgs, axis=0)
+            mean_img = mean_img.astype(int)
+    else:# single grayscale image
+        warnings.warn('Single image is passed: Nothing is done, returning the input image untouched.')
+        mean_img = imgs
+    return mean_img
 
 
 
