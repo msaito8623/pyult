@@ -300,22 +300,57 @@ def deriv_discrete ( vect ):
 ### Functions for fitting spline curves (UNTIL HERE) ###
 
 def to_square (imgs):
-    shapes = [ i.shape for i in imgs ]
-    ymx = max([ i[0] for i in shapes ])
-    xmx = max([ i[1] for i in shapes ])
-    bigger = ymx if ymx >= xmx else xmx
-    squsize = (bigger, bigger)
-    imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
-    imgs = np.array(imgs)
+    if len(imgs.shape)==4:
+        shapes = [ i.shape for i in imgs ]
+        ymx = max([ i[0] for i in shapes ])
+        xmx = max([ i[1] for i in shapes ])
+        bigger = ymx if ymx >= xmx else xmx
+        squsize = (bigger, bigger)
+        imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
+        imgs = np.array(imgs)
+    elif len(imgs.shape)==3:
+        if imgs.shape[-1]==3:# single RGB image
+            ymx = imgs.shape[0]
+            xmx = imgs.shape[1]
+            bigger = ymx if ymx >= xmx else xmx
+            squsize = (bigger, bigger)
+            imgs = cv2.resize(src=imgs, dsize=squsize)
+            imgs = np.array(imgs)
+        else:# multiple grayscale images
+            shapes = [ i.shape for i in imgs ]
+            ymx = max([ i[0] for i in shapes ])
+            xmx = max([ i[1] for i in shapes ])
+            bigger = ymx if ymx >= xmx else xmx
+            squsize = (bigger, bigger)
+            imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
+            imgs = np.array(imgs)
+    else:# single grayscale image
+        ymx = imgs.shape[0]
+        xmx = imgs.shape[1]
+        bigger = ymx if ymx >= xmx else xmx
+        squsize = (bigger, bigger)
+        imgs = cv2.resize(src=imgs, dsize=squsize)
+        imgs = np.array(imgs)
     return imgs
 
 
 ### Fanshape (FROM HERE) ###
 def to_fan (imgs, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800, show_progress=False ):
-    if show_progress:
-        imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
-    else:
-        imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+    if len(imgs.shape)==4:# multiple RGB images
+        if show_progress:
+            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
+        else:
+            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+    elif len(imgs.shape)==3:
+        if imgs.shape[-1]==3:# single RGB image
+            imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve)
+        else:# multiple grayscale images
+            if show_progress:
+                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
+            else:
+                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+    else:# single grayscale image
+        imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve)
     return np.array(imgs)
 
 def to_fan_2d (img, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800):

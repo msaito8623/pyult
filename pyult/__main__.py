@@ -74,25 +74,73 @@ def execute_task (par_args):
     if hasattr(obj, 'splimgs'):
         obj.imgs = obj.splimgs
     if task=='raw':
-        digits = len(str(len(obj.imgs)))
-        for i,j in enumerate(obj.imgs):
-            suffix = str(i).zfill(digits)
+        if len(obj.imgs.shape)==4:# multiple frames (RGB scale)
+            digits = len(str(len(obj.imgs)))
+            for i,j in enumerate(obj.imgs):
+                suffix = str(i).zfill(digits)
+                opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, j)
+        elif len(obj.imgs.shape)==3:
+            if obj.imgs.shape[-1]==3:# single frame (RGB scale)
+                suffix = str(c_picked_frame).zfill(3)
+                opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, obj.imgs)
+            else:# multiple frames (grayscale)
+                digits = len(str(len(obj.imgs)))
+                for i,j in enumerate(obj.imgs):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+        else:#single frame (grayscale)
+            suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
-            cv2.imwrite(opath, j)
+            cv2.imwrite(opath, obj.imgs)
     if task=='squ':
         obj.square_imgs()
-        digits = len(str(len(obj.squares)))
-        for i,j in enumerate(obj.squares):
-            suffix = str(i).zfill(digits)
+        if len(obj.squares.shape)==4:# multiple RGB images
+            digits = len(str(len(obj.squares)))
+            for i,j in enumerate(obj.squares):
+                suffix = str(i).zfill(digits)
+                opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, j)
+        elif len(obj.squares.shape)==3:
+            if obj.squares.shape[-1]==3:# single RGB image
+                suffix = str(c_picked_frame).zfill(3)
+                opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, obj.squares)
+            else:# multiple grayscale images
+                digits = len(str(len(obj.squares)))
+                for i,j in enumerate(obj.squares):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+        else:# single grayscale image
+            suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
-            cv2.imwrite(opath, j)
+            cv2.imwrite(opath, obj.squares)
     if task=='fan':
         obj.to_fan(magnify=int(magnify), show_progress=True)
-        digits = len(str(len(obj.fans)))
-        for i,j in enumerate(obj.fans):
-            suffix = str(i).zfill(digits)
+        if len(obj.fans.shape)==4:# multiple RGB images
+            digits = len(str(len(obj.fans)))
+            for i,j in enumerate(obj.fans):
+                suffix = str(i).zfill(digits)
+                opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, j)
+        elif len(obj.fans.shape)==3:
+            if obj.fans.shape[-1]==3:# single RGB image
+                suffix = str(c_picked_frame).zfill(3)
+                opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                cv2.imwrite(opath, obj.fans)
+            else:# multiple grayscale images
+                digits = len(str(len(obj.fans)))
+                for i,j in enumerate(obj.fans):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+        else:# single grayscale image
+            suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
-            cv2.imwrite(opath, j)
+            cv2.imwrite(opath, obj.fans)
     if task=='video':
         apath = file.find_target_file(wdir, stem, '\\.wav$')
         vpath = wdir + '/' + stem + '.avi'
