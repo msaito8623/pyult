@@ -13,7 +13,7 @@ from pip._vendor import pkg_resources
 
 __author__ = 'Motoki Saito'
 __author_email__ = 'motoki.saito@uni-tuebingen.de'
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 __license__ = 'MIT'
 __description__ = 'Preprocessing ultrasound images from AAA in Python'
 __classifiers__ = [
