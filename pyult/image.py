@@ -482,7 +482,7 @@ def average_imgs (imgs):
             shps = [ i.shape for i in imgs ]
             dim0 = max([ i[0] for i in shps ])
             dim1 = max([ i[1] for i in shps ])
-            imgs = [ self.resize(new_xy=(dim0, dim1), img=i) for i in imgs ]
+            imgs = [ cv2.resize(src=i, dsize=(dim0, dim1)) for i in imgs ]
             warnings.warn('Input images have different dimensions: they are resized, so they share the same dimensions.')
         imgs = np.stack(imgs)
     dimnum = len(imgs.shape)
