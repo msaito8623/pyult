@@ -48,7 +48,7 @@ class Recording:
             with open(path, 'r') as f:
                 frms = f.readlines()
             frms = [ i.strip().split(sep) for i in frms ]
-            frms = { i[0]:i[1] for i in frms }
+            frms = { i[0]:i[1:] for i in frms }
             self.pkdframes = frms
         except FileNotFoundError:
             self.pkdframes = None

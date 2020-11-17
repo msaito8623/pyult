@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import cv2
 from multiprocessing import Pool
 from pathlib import Path
@@ -56,7 +57,7 @@ def execute_task (par_args):
     obj.read_frames_csv(file.find_target_file(wdir, 'frames', '\\.csv', recursive=True))
     obj.vec_to_imgs()
     if not obj.pkdframes is None:
-        c_picked_frame = int(obj.pkdframes[stem])
+        c_picked_frame = np.array(obj.pkdframes[stem], dtype=int)
         obj.imgs = obj.imgs[c_picked_frame]
     obj.crop(crop)
     obj.flip(flip)
@@ -75,22 +76,34 @@ def execute_task (par_args):
         obj.imgs = obj.splimgs
     if task=='raw':
         if len(obj.imgs.shape)==4:# multiple frames (RGB scale)
-            digits = len(str(len(obj.imgs)))
-            for i,j in enumerate(obj.imgs):
-                suffix = str(i).zfill(digits)
-                opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
-                cv2.imwrite(opath, j)
+            if not obj.pkdframes is None:
+                for i,j in zip(c_picked_frame, obj.imgs):
+                    suffix = str(i).zfill(3)
+                    opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+            else:
+                digits = len(str(len(obj.imgs)))
+                for i,j in enumerate(obj.imgs):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
         elif len(obj.imgs.shape)==3:
             if obj.imgs.shape[-1]==3:# single frame (RGB scale)
                 suffix = str(c_picked_frame).zfill(3)
                 opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
                 cv2.imwrite(opath, obj.imgs)
             else:# multiple frames (grayscale)
-                digits = len(str(len(obj.imgs)))
-                for i,j in enumerate(obj.imgs):
-                    suffix = str(i).zfill(digits)
-                    opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
-                    cv2.imwrite(opath, j)
+                if not obj.pkdframes is None:
+                    for i,j in zip(c_picked_frame,obj.imgs):
+                        suffix = str(i).zfill(3)
+                        opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
+                else:
+                    digits = len(str(len(obj.imgs)))
+                    for i,j in enumerate(obj.imgs):
+                        suffix = str(i).zfill(digits)
+                        opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
         else:#single frame (grayscale)
             suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_raw_{}.png'.format(pdir, stem, suffix)
@@ -98,22 +111,34 @@ def execute_task (par_args):
     if task=='squ':
         obj.square_imgs()
         if len(obj.squares.shape)==4:# multiple RGB images
-            digits = len(str(len(obj.squares)))
-            for i,j in enumerate(obj.squares):
-                suffix = str(i).zfill(digits)
-                opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
-                cv2.imwrite(opath, j)
+            if not obj.pkdframes is None:
+                for i,j in zip(c_picked_frame, obj.squares):
+                    suffix = str(i).zfill(3)
+                    opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+            else:
+                digits = len(str(len(obj.squares)))
+                for i,j in enumerate(obj.squares):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
         elif len(obj.squares.shape)==3:
             if obj.squares.shape[-1]==3:# single RGB image
                 suffix = str(c_picked_frame).zfill(3)
                 opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
                 cv2.imwrite(opath, obj.squares)
             else:# multiple grayscale images
-                digits = len(str(len(obj.squares)))
-                for i,j in enumerate(obj.squares):
-                    suffix = str(i).zfill(digits)
-                    opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
-                    cv2.imwrite(opath, j)
+                if not obj.pkdframes is None:
+                    for i,j in zip(c_picked_frame, obj.squares):
+                        suffix = str(i).zfill(3)
+                        opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
+                else:
+                    digits = len(str(len(obj.squares)))
+                    for i,j in enumerate(obj.squares):
+                        suffix = str(i).zfill(digits)
+                        opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
         else:# single grayscale image
             suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_square_{}.png'.format(pdir, stem, suffix)
@@ -121,22 +146,34 @@ def execute_task (par_args):
     if task=='fan':
         obj.to_fan(magnify=int(magnify), show_progress=True)
         if len(obj.fans.shape)==4:# multiple RGB images
-            digits = len(str(len(obj.fans)))
-            for i,j in enumerate(obj.fans):
-                suffix = str(i).zfill(digits)
-                opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
-                cv2.imwrite(opath, j)
+            if not obj.pkdframes is None:
+                for i,j in zip(c_picked_frame, obj.fans):
+                    suffix = str(i).zfill(3)
+                    opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
+            else:
+                digits = len(str(len(obj.fans)))
+                for i,j in enumerate(obj.fans):
+                    suffix = str(i).zfill(digits)
+                    opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                    cv2.imwrite(opath, j)
         elif len(obj.fans.shape)==3:
             if obj.fans.shape[-1]==3:# single RGB image
                 suffix = str(c_picked_frame).zfill(3)
                 opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
                 cv2.imwrite(opath, obj.fans)
             else:# multiple grayscale images
-                digits = len(str(len(obj.fans)))
-                for i,j in enumerate(obj.fans):
-                    suffix = str(i).zfill(digits)
-                    opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
-                    cv2.imwrite(opath, j)
+                if not obj.pkdframes is None:
+                    for i,j in zip(c_picked_frame, obj.fans):
+                        suffix = str(i).zfill(3)
+                        opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
+                else:
+                    digits = len(str(len(obj.fans)))
+                    for i,j in enumerate(obj.fans):
+                        suffix = str(i).zfill(digits)
+                        opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
+                        cv2.imwrite(opath, j)
         else:# single grayscale image
             suffix = str(c_picked_frame).zfill(3)
             opath = '{}/{}_fan_{}.png'.format(pdir, stem, suffix)
