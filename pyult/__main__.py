@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from pathlib import Path
 from pyult import file
 from pyult import recording
+import warnings
 import argparse
 parser = argparse.ArgumentParser()
 
@@ -57,7 +58,11 @@ def execute_task (par_args):
     obj.read_frames_csv(file.find_target_file(wdir, 'frames', '\\.csv', recursive=True))
     obj.vec_to_imgs()
     if not obj.pkdframes is None:
-        c_picked_frame = np.array(obj.pkdframes[stem], dtype=int)
+        try:
+            c_picked_frame = np.array(obj.pkdframes[stem], dtype=int)
+        except KeyError:
+            warnings.warn('Recording ID "{}" is not found in frames.csv. This recording is ignored.'.format(stem))
+            return None
         obj.imgs = obj.imgs[c_picked_frame]
     obj.crop(crop)
     obj.flip(flip)
