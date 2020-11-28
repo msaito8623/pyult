@@ -4,6 +4,8 @@ import os
 import pandas as pd
 import pytest
 from pyult import recording
+import shutil
+from pathlib import Path
 
 TEST_ROOT = os.path.dirname(__file__)
 
@@ -272,6 +274,33 @@ def test_to_fan_general_parameters ():
     samplefan = os.path.join(TEST_ROOT, 'resources/sample_fan2.png')
     img2 = cv2.imread(samplefan, 0)
     assert (img1==img2).all()
+
+def test_read_img ():
+    obj = recording.Recording()
+    gry_path = os.path.join(TEST_ROOT, 'resources/sample_fan.png')
+    obj.read_img(gry_path, True)
+    gry2 = cv2.imread(gry_path, 0)
+    gry_check = (obj.img!=gry2).sum()==0
+    rgb_path = os.path.join(TEST_ROOT, 'resources/sample_spline.png')
+    obj.read_img(rgb_path, False)
+    rgb2 = cv2.imread(rgb_path, 1)
+    rgb_check = (obj.img!=rgb2).sum()==0
+    assert gry_check and rgb_check
+
+def test_save_img ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    temp_dir = os.path.join(TEST_ROOT, 'resources/temp')
+    os.makedirs(temp_dir, exist_ok=True)
+    obj.save_img(temp_dir + '/temp.png')
+    paths = list(Path(temp_dir).glob('*.png'))
+    ok = len(paths)==len(obj.imgs)
+    shutil.rmtree(temp_dir)
+    assert ok
 
 
 

@@ -6,7 +6,28 @@ import math
 from tqdm import tqdm
 import subprocess
 import warnings
+from pathlib import Path
 
+def read_img (path, grayscale=True):
+    flg = 0 if grayscale else 1
+    img = cv2.imread(path,flg)
+    return img
+
+def save_img (outpath, img):
+    shp = img.shape
+    iln = len(shp)
+    if (iln==2) or (iln==3 and shp[-1]==3):
+        cv2.imwrite(outpath, img)
+    elif (iln==3 and shp[-1]!=3) or (iln==4):
+        opath = Path(outpath)
+        prn = opath.parent
+        stm = opath.stem
+        opaths = [ '{}/{}{:03d}.png'.format(prn,stm,i) for i in range(len(img)) ]
+        for i,j in zip(opaths,img):
+            cv2.imwrite(i,j)
+    else:
+        raise ValueError('Image dimension is invalid.')
+    return None
 
 def vec_to_imgs (vector, number_of_vectors, pixel_per_vector):
     """

@@ -53,6 +53,19 @@ class Recording:
         except FileNotFoundError:
             self.pkdframes = None
         return None
+    def read_img (self, inpath, grayscale=True):
+        self.img = image.read_img(inpath, grayscale)
+        return None
+    def save_img (self, outpath, img=None):
+        if img is None:
+            if hasattr(self, 'img'):
+                img = self.img
+            elif hasattr(self, 'imgs'):
+                img = self.imgs
+            else:
+                raise ValueError('Image to be saved cannot be found.')
+        image.save_img(outpath, img)
+        return None
     def vec_to_imgs (self):
         self.imgs = image.vec_to_imgs(self.vector, self.NumVectors, self.PixPerVector)
         return None
