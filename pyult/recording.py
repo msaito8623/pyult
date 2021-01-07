@@ -3,6 +3,7 @@ import pyult.file as file
 import pyult.image as image 
 import pyult.dataframe as dataframe
 from pathlib import Path
+import numpy as np
 
 class Recording:
     def __init__ (self):
@@ -69,6 +70,16 @@ class Recording:
     def vec_to_imgs (self):
         self.imgs = image.vec_to_imgs(self.vector, self.NumVectors, self.PixPerVector)
         return None
+    def filter_imgs (self, frame=None, time=None, inplace=True):
+        if (not time is None) and (not hasattr(self, 'FramesPerSec')):
+            raise AttributeError('Frame rate is necessary when filtering by time. Load a parameter file first with self.read_ustxt.')
+        filtered_imgs = image.filter_imgs(self.imgs, frame, time, self.FramesPerSec)
+        if inplace:
+            self.imgs = filtered_imgs
+            rtn = None
+        else:
+            rtn = filtered_imgs
+        return rtn
     def crop (self, crop_points):
         self.imgs = image.crop(self.imgs, crop_points)
         return None

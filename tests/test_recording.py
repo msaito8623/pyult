@@ -302,7 +302,19 @@ def test_save_img ():
     shutil.rmtree(temp_dir)
     assert ok
 
-
+def test_filter_imgs ():
+    obj = recording.Recording()
+    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+    obj.read_ult(ultpath)
+    obj.read_ustxt(uspath)
+    obj.vec_to_imgs()
+    aaa = obj.filter_imgs(frame=1, inplace=False)
+    bbb = obj.filter_imgs(time=0.0245, inplace=False)
+    obj.filter_imgs(time=0.0245)
+    tst1 = (aaa!=bbb).sum()==0
+    tst2 = (aaa!=obj.imgs).sum()==0
+    assert tst1 and tst2
 
     
 

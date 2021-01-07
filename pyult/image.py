@@ -520,5 +520,22 @@ def average_imgs (imgs):
         mean_img = imgs
     return mean_img
 
+def filter_imgs (imgs, frame=None, time=None, fps=None):
+    flg = sum([ i is None for i in [frame, time] ])
+    if flg==2 or flg==0:
+        raise ValueError('Only one of frame or time should be provided.')
+    if not time is None:
+        if fps is None:
+            raise ValueError("Provide fps when filtering by time.")
+        else:
+            frames_in_seconds = np.arange(1,len(imgs)+1)/fps
+            try:
+                frame = np.array([abs(frames_in_seconds-i).argmin() for i in time])
+            except TypeError:
+                frame = np.array(abs(frames_in_seconds-time).argmin())
+    imgs = imgs[frame]
+    return imgs
+
+
 
 
