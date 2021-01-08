@@ -6,112 +6,89 @@ import pytest
 from pyult import recording
 import shutil
 from pathlib import Path
+import pyult.image as uimg
 
-TEST_ROOT = os.path.dirname(__file__)
+TEST_ROOT = Path(__file__).parent
 
-def test_read_ult ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
+def test_read_ult (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sample.ult')
     obj.read_ult(path)
     assert hasattr(obj, 'vector')
 
-def test_read_ustxt ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
+def test_read_ustxt (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sampleUS.txt')
     obj.read_ustxt(path)
     assert len(obj.__dict__)==10
 
-def test_read_txt ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.txt')
+def test_read_txt (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sample.txt')
     obj.read_txt(path)
     assert len(obj.__dict__)==3
 
-def test_read_phones ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
+def test_read_phones (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sample.phoneswithQ')
     obj.read_phones(path)
     cond1 = len(obj.phones)==13
     cond2 = obj.phones.loc[10,'end']==1.51
     assert all([cond1, cond2])
 
-def test_read_words ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
+def test_read_words (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sample.words')
     obj.read_words(path)
     cond1 = len(obj.words)==7
     cond2 = obj.words.loc[3,'end']==0.93
     assert all([cond1, cond2])
 
-def test_read_textgrid ():
-    obj = recording.Recording()
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.TextGrid')
+def test_read_textgrid (rec_obj):
+    obj = rec_obj(par=False)
+    path = str(TEST_ROOT / 'resources/sample_recording/sample.TextGrid')
     obj.read_textgrid(path)
     cond1 = isinstance(obj.textgrid, list)
     cond2 = len(obj.textgrid)>0
     assert all([cond1, cond2])
 
-def test_vec_to_imgs ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_vec_to_imgs (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     assert obj.imgs.shape == (333, 842, 64)
 
-def test_crop ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_crop (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.crop((10,50,100,700))
     assert obj.imgs.shape == (333, 601, 41)
 
-def test_add_crop_line ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_add_crop_line (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.add_crop_line((10,50,100,700))
     cond1 = obj.imgs.shape == (333, 842, 64, 3)
     cond2 = len(set([ tuple(obj.imgs[0,100,i,:]) for i in range(obj.imgs.shape[2]) ]))==1
     assert all([cond1, cond2])
 
-def test_flip_x ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_flip_x (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     tesvec = obj.imgs[0,0,:]
     tesvec = tesvec[::-1]
     obj.flip('x')
     assert all(obj.imgs[0,0,:] == tesvec)
 
-def test_flip_y ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_flip_y (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     tesvec = obj.imgs[0,:,0]
     tesvec = tesvec[::-1]
     obj.flip('y')
     assert all(obj.imgs[0,:,0] == tesvec)
     
-def test_flip_xy ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_flip_xy (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     tesvecx = obj.imgs[0,0,:]
     tesvecx = tesvecx[::-1]
@@ -122,12 +99,8 @@ def test_flip_xy ():
     cond2 = all(obj.imgs[0,:,-1] == tesvecy)
     assert all([cond1, cond2])
 
-def test_reduce_y ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_reduce_y (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     tesvec = obj.imgs[0,:,0]
     tesvec = tesvec[::3]
@@ -136,38 +109,26 @@ def test_reduce_y ():
     cond2 = all(obj.imgs[0,:,0] == tesvec)
     assert all([cond1, cond2])
 
-def test_fit_spline_images ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_fit_spline_images (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
     obj.fit_spline()
     cond1 = obj.splimgs.shape == (2, 842, 64, 3)
-    figpath = os.path.join(TEST_ROOT, 'resources/sample_spline.png')
+    figpath = str(TEST_ROOT / 'resources/sample_spline.png')
     img = cv2.imread(figpath, 1)
-    cond2 = (obj.splimgs[1] == img).all()
+    cond2 = np.equal(obj.splimgs[1], img).all()
     assert all([cond1, cond2])
 
-def test_fit_spline_values ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_fit_spline_values (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
     obj.fit_spline(fitted_images=False, fitted_values=True)
     assert hasattr(obj, 'fitted_values')
 
-def test_imgs_to_df ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_imgs_to_df (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs_to_df()
     pos = np.linspace(0, len(obj.df)-1, 10).round().astype(int)
@@ -177,16 +138,8 @@ def test_imgs_to_df ():
     samplegz = samplegz.round(10)
     assert (obj.df==samplegz).all().all()
 
-def test_integrate_segments ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    phonespath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
-    wordspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
-    obj.read_phones(phonespath)
-    obj.read_words(wordspath)
+def test_integrate_segments (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs_to_df()
     obj.integrate_segments()
@@ -197,28 +150,16 @@ def test_integrate_segments ():
     samplegz = samplegz.round(10)
     assert (obj.df==samplegz).all().all()
 
-def test_rmv_noise ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    phonespath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.phoneswithQ')
-    wordspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.words')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
-    obj.read_phones(phonespath)
-    obj.read_words(wordspath)
+def test_rmv_noise (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs_to_df()
     obj.integrate_segments()
     obj.rmv_noise()
     assert len(set(obj.df.word)) == 2
 
-def test_integrate_splines ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_integrate_splines (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.imgs = obj.imgs[:2]
     obj.imgs_to_df()
@@ -227,94 +168,85 @@ def test_integrate_splines ():
     cond2 = len(set(obj.df.y_spline.dropna())) == 65
     assert all([cond1, cond2])
 
-def test_textgrid_to_alignfiles ():
-    obj = recording.Recording()
-    tgpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.TextGrid')
-    obj.read_textgrid(tgpath)
+def test_textgrid_to_alignfiles (rec_obj):
+    obj = rec_obj(par=True)
     obj.textgrid_to_alignfiles()
     cond1 = hasattr(obj, 'phones')
     cond2 = hasattr(obj, 'words')
     assert all([cond1, cond2])
 
-def test_square_imgs ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_square_imgs (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     obj.square_imgs()
     cond1 = hasattr(obj, 'squares')
     cond2 = all([ len(set(i.shape))==1 for i in obj.squares ])
     assert all([cond1, cond2])
 
-def test_to_fan ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_to_fan (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
-    obj.to_fan()
-    img1 = obj.fans[100]
-    samplefan = os.path.join(TEST_ROOT, 'resources/sample_fan.png')
-    img2 = cv2.imread(samplefan, 0)
-    assert (img1==img2).all()
+    obj.filter_imgs(frame=[20,40,60])
+    obj.to_fan(magnify=3)
+    paths = [ 'resources/sample_fan_{:03d}.png'.format(i) for i in range(3) ]
+    paths = [ str(TEST_ROOT / Path(i)) for i in paths ]
+    fans = [ uimg.read_img(i) for i in paths ]
+    check = all([ np.equal(i,j).all() for i,j in zip(obj.fans, fans) ])
+    assert check
 
-def test_to_fan_general_parameters ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_to_fan_general_parameters (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
-    obj.imgs = obj.imgs[:3]
+    obj.filter_imgs(frame=[20,40,60])
     obj.to_fan(general_parameters=True)
-    img1 = obj.fans[1]
-    samplefan = os.path.join(TEST_ROOT, 'resources/sample_fan2.png')
-    img2 = cv2.imread(samplefan, 0)
-    assert (img1==img2).all()
+    paths = [ 'resources/sample_fan_genpar_{:03d}.png'.format(i) for i in range(3) ]
+    paths = [ str(TEST_ROOT / Path(i)) for i in paths ]
+    fans = [ uimg.read_img(i) for i in paths ]
+    check = all([ np.equal(i,j).all() for i,j in zip(obj.fans, fans) ])
+    assert check
 
-def test_read_img ():
-    obj = recording.Recording()
-    gry_path = os.path.join(TEST_ROOT, 'resources/sample_fan.png')
+def test_read_img (rec_obj):
+    obj = rec_obj(par=False)
+    gry_path = str(TEST_ROOT / 'resources/sample_fan_000.png')
     obj.read_img(gry_path, True)
     gry2 = cv2.imread(gry_path, 0)
-    gry_check = (obj.img!=gry2).sum()==0
-    rgb_path = os.path.join(TEST_ROOT, 'resources/sample_spline.png')
+    gry_check = np.equal(obj.img, gry2).all()
+    rgb_path = str(TEST_ROOT / 'resources/sample_spline.png')
     obj.read_img(rgb_path, False)
     rgb2 = cv2.imread(rgb_path, 1)
-    rgb_check = (obj.img!=rgb2).sum()==0
+    rgb_check = np.equal(obj.img, rgb2).all()
     assert gry_check and rgb_check
 
-def test_save_img ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_save_img (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
-    temp_dir = os.path.join(TEST_ROOT, 'resources/temp')
-    os.makedirs(temp_dir, exist_ok=True)
-    obj.save_img(temp_dir + '/temp.png')
-    paths = list(Path(temp_dir).glob('*.png'))
+    temp_dir = TEST_ROOT / 'resources/temp'
+    os.makedirs(str(temp_dir), exist_ok=True)
+    obj.save_img(str(temp_dir / 'temp.png'))
+    paths = list(temp_dir.glob('*.png'))
     ok = len(paths)==len(obj.imgs)
-    shutil.rmtree(temp_dir)
+    shutil.rmtree(str(temp_dir))
     assert ok
 
-def test_filter_imgs ():
-    obj = recording.Recording()
-    ultpath = os.path.join(TEST_ROOT, 'resources/sample_recording/sample.ult')
-    uspath = os.path.join(TEST_ROOT, 'resources/sample_recording/sampleUS.txt')
-    obj.read_ult(ultpath)
-    obj.read_ustxt(uspath)
+def test_filter_imgs (rec_obj):
+    obj = rec_obj(par=True)
     obj.vec_to_imgs()
     aaa = obj.filter_imgs(frame=1, inplace=False)
     bbb = obj.filter_imgs(time=0.0245, inplace=False)
     obj.filter_imgs(time=0.0245)
-    tst1 = (aaa!=bbb).sum()==0
-    tst2 = (aaa!=obj.imgs).sum()==0
+    tst1 = np.equal(aaa,bbb).all()
+    tst2 = np.equal(aaa,obj.imgs).all()
     assert tst1 and tst2
+
+def test_ymax (rec_obj):
+    obj = rec_obj(par=False)
+    img = str(TEST_ROOT / 'resources/sample_fan_000.png')
+    obj.read_img(img, True)
+    obj.ymax(return_img=True)
+    assert type(obj.ymaxpos) is np.int64
+    assert obj.ymaxpos > 0
+    assert type(obj.ymaximgs) is np.ndarray
+    assert len(obj.ymaximgs.shape) == 3
 
     
 

@@ -7,6 +7,7 @@ from tqdm import tqdm
 import subprocess
 import warnings
 from pathlib import Path
+from multiprocessing import Pool
 
 def read_img (path, grayscale=True):
     flg = 0 if grayscale else 1
@@ -536,6 +537,117 @@ def filter_imgs (imgs, frame=None, time=None, fps=None):
     imgs = imgs[frame]
     return imgs
 
+def ymax (img, ignore_edges=True):
+    """
+    Find the brightest pixel that is the highest along y-axis.
+    Currently the function assumes a gray-scaled 2-dimensional image.
 
+    Parameters
+    ----------
+    img : numpy.ndarray
+        Input image you want to find the higheset y position in. It
+        must be 2-dimensional (len(img.shape)==2) for the current
+        version.
+    ignore_edges : {True, False}
+        If True, background pixels are ignored. This option should be
+        kept True for a fan-shaped image, which has background pixels
+        (usually white (255)) in the four corners. This option should
+        be False for a normal image such as a raw (rectangle)
+        ultrasound image.
 
+    Returns
+    -------
+    pos_and_img : dict
+        It has two keys, 'pos' and 'img'. 'pos' is the position of the
+        brightest pixel highest along y-axis. 'img' is an RGB scale
+        image, which is the same as the input image (img) but with a
+        red horizontal line at the y-position of the brightest &
+        highest pixel.
 
+    """
+    if len(img.shape)!=2:
+        raise ValueError('''Dimension of the input image must be 2.
+        It is now {}. If the image is in RGB scale, convert it into
+        grayscale first. If the input is already in grayscale but has
+        multiple frames, parallelize a function with
+        pyult.image.parallelize or simply use the multiprocessing
+        module.'''.format(len(img.shape)))
+    if ignore_edges:
+        edges = dict()
+        for i in range(img.shape[1]):
+            if img[0,i] in [0,255]:
+                for ind,j in enumerate(img[:,i]):
+                    if (int(img[0,i])-int(j))!=0:
+                        img[:ind,i] = 0
+                        edges[i] = list(range(ind))
+                        break
+        for i in range(img.shape[1]):
+            if img[-1,i] in [0,255]:
+                for ind,j in enumerate(img[::-1,i]):
+                    if (int(img[-1,i])-int(j))!=0:
+                        img[(len(img[:,i])-ind):,i] = 0
+                        edges[i] = edges.get(i,[]) + list(range(len(img[:,i])-ind, len(img[:,i])))
+                        edges[i] = sorted(list(set(edges[i])))
+                        break
+    ftv = get_fitted_values(img)
+    rng = list(range(img.shape[1]))[int(abs(img.shape[1]*1/4)):int(abs(img.shape[1]*3/4))]
+    ind = np.array([ i for i,j in enumerate(ftv['index']) if j in rng ])
+    ftv = { i:j[ind] for i,j in ftv.items() }
+    ymaxpos = min(ftv['fitted_values'])
+    if ignore_edges:
+        for i,j in edges.items():
+            for k in j:
+                img[k,i] = 255
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    for i in range(img.shape[1]):
+        img[ymaxpos, i, :] = (0,0,255)
+    pos_and_img = {'pos':ymaxpos, 'img':img}
+    return pos_and_img
+
+def parallelize (imgs, func, cores=2):
+    """
+    Execute a function for each image in parallel.
+    This function assumes 'imgs' is multi-frames of grayscale
+    images for the current version.
+
+    Parameters
+    ----------
+    imgs : numpy.ndarray (3d) or list of numpy.ndarray(2d)
+        Input multi-frame images. Each image is assumed to be in
+        grayscale in the current version.
+    func : function
+        Function to be applied to each (2-dimensional grayscale)
+        image.
+    cores : int
+        How many cores to use.
+
+    Return
+    ------
+    imgs : list of numpy.ndarray (2d)
+        Images on which 'func' has been carried out.
+
+    """
+    if type(imgs) is np.ndarray:
+        if len(imgs.shape)!=3:
+            err = True
+        else:
+            err = False
+    elif type(imgs) is list:
+        check1 = all([ type(i) is np.ndarray for i in imgs ])
+        if check1:
+            check2 = all([ (i.shape)==2 for i in imgs ])
+            if check2:
+                err = False
+            else:
+                err = True
+        else:
+            err = True
+    else:
+        err = True
+    if err:
+        raise ValueError('''Input must be 3-dimensional
+        numpy.ndarray or a list of 2-dimensional
+        numpy.ndarray.''')
+    with Pool(cores) as p:
+        imgs = p.map(func, imgs)
+    return imgs

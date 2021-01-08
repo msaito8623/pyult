@@ -163,5 +163,30 @@ class Recording:
         os.remove(vtemp)
         os.remove(atemp)
         return None
+    def ymax (self, img=None, return_img=False, overwrite_imgs=False):
+        if img is None:
+            if hasattr(self, 'imgs'):
+                img = self.imgs
+            elif hasattr(self, 'img'):
+                img = self.img
+            else:
+                raise ValueError("Provide 'img'.")
+        if len(img.shape)==2:
+            pos_img = image.ymax(img)
+            self.ymaxpos = pos_img['pos']
+            if return_img:
+                if overwrite_imgs:
+                    self.imgs = pos_img['img']
+                else:
+                    self.ymaximgs = pos_img['img']
+        elif len(img.shape)==3:
+            pos_img = image.parallelize(img, image.ymax)
+            self.ymaxpos = [ i['pos'] for i in pos_img ]
+            if return_img:
+                if overwrite_imgs:
+                    self.imgs = [ i['img'] for i in pos_img ]
+                else:
+                    self.ymaximgs = [ i['img'] for i in pos_img ]
+        return None
 
 
