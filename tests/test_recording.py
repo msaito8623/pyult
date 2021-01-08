@@ -12,25 +12,25 @@ TEST_ROOT = Path(__file__).parent
 
 def test_read_ult (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sample.ult')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01.ult')
     obj.read_ult(path)
     assert hasattr(obj, 'vector')
 
 def test_read_ustxt (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sampleUS.txt')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01US.txt')
     obj.read_ustxt(path)
     assert len(obj.__dict__)==10
 
 def test_read_txt (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sample.txt')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01.txt')
     obj.read_txt(path)
     assert len(obj.__dict__)==3
 
 def test_read_phones (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sample.phoneswithQ')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01.phoneswithQ')
     obj.read_phones(path)
     cond1 = len(obj.phones)==13
     cond2 = obj.phones.loc[10,'end']==1.51
@@ -38,7 +38,7 @@ def test_read_phones (rec_obj):
 
 def test_read_words (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sample.words')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01.words')
     obj.read_words(path)
     cond1 = len(obj.words)==7
     cond2 = obj.words.loc[3,'end']==0.93
@@ -46,7 +46,7 @@ def test_read_words (rec_obj):
 
 def test_read_textgrid (rec_obj):
     obj = rec_obj(par=False)
-    path = str(TEST_ROOT / 'resources/sample_recording/sample.TextGrid')
+    path = str(TEST_ROOT / 'resources/sample_recording/sample_01.TextGrid')
     obj.read_textgrid(path)
     cond1 = isinstance(obj.textgrid, list)
     cond2 = len(obj.textgrid)>0

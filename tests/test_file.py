@@ -3,7 +3,7 @@ import pytest
 from pyult import file
 from pathlib import Path
 
-TEST_ROOT = os.path.dirname(__file__)
+TEST_ROOT = Path(__file__).parent
 
 def test_mainpart ():
     teststrs = ['xxx_Track0', 'xxx_Track01', 'xxxUS', 'xxx_corrected']
@@ -11,19 +11,18 @@ def test_mainpart ():
     assert len(set(cleaned))==1
 
 def test_check_wdir ():
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording')
+    path = str(TEST_ROOT / 'resources/sample_recording')
     assert file.check_wdir(path, verbose=False)
 
 def test_unique_target_stems ():
-    path = os.path.join(TEST_ROOT, 'resources/sample_recording')
+    path = str(TEST_ROOT / 'resources/sample_recording')
     paths = file.unique_target_stems(path)
-    cond1 = len(set(paths))==1
-    cond2 = paths[0]=='sample'
-    assert all([cond1, cond2])
+    assert len(set(paths))==2
+    assert all([ i==j for i,j in zip(paths, ['sample_01','sample_02']) ])
 
 def test_find_target_file ():
-    wdir = os.path.join(TEST_ROOT, 'resources/sample_recording')
-    stem = 'sample'
+    wdir = str(TEST_ROOT / 'resources/sample_recording')
+    stem = 'sample_02'
     extension = '\\.wav$'
     path = file.find_target_file(wdir, stem, extension)
     assert Path(path).exists()

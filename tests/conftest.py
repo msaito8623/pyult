@@ -11,12 +11,12 @@ def rec_obj ():
         rec = Recording()
         if par:
             wdr = TEST_ROOT / Path('resources/sample_recording')
-            fnm = {'ult':'sample.ult',
-                   'ust':'sampleUS.txt',
-                   'txt':'sample.txt',
-                   'phn':'sample.phoneswithQ',
-                   'wrd':'sample.words',
-                   'tgd':'sample.TextGrid'}
+            fnm = {'ult':'sample_01.ult',
+                   'ust':'sample_01US.txt',
+                   'txt':'sample_01.txt',
+                   'phn':'sample_01.phoneswithQ',
+                   'wrd':'sample_01.words',
+                   'tgd':'sample_01.TextGrid'}
             fnm = { i:wdr/Path(j) for i,j in fnm.items() }
             rec.read_ult(fnm['ult'])
             rec.read_ustxt(fnm['ust'])
