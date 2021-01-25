@@ -651,3 +651,81 @@ def parallelize (imgs, func, cores=2):
     with Pool(cores) as p:
         imgs = p.map(func, imgs)
     return imgs
+
+def highest_xy (img, ignore_edges=True):
+    """
+    Find the brightest pixel that is the highest along y-axis.
+    This function assumes the input as an RGB image.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        Input image you want to find the higheset y position in. It
+        must be 3-dimensional (len(img.shape)==3) and the length of
+        the third axis (len(img.shape[2])==3) must be 3.
+    ignore_edges : {True, False}
+        If True, background pixels are ignored. This option should be
+        kept True for a fan-shaped image, which has background pixels
+        (usually white ([255,255,255])) in the four corners. This option should
+        be False for a normal image such as a raw (rectangle)
+        ultrasound image.
+
+    Returns
+    -------
+    pos_and_img : dict
+        It has two keys, 'ypos', 'xpos' and 'img'. 'ypos' is the position of the
+        brightest pixel highest along y-axis. 'xpos' is its corresponding horizontal position. 'img' is an RGB scale image. The current version of this function assumes that the input is a spline-fitted image, where only the fitted spline is red. Accordingly, this function removes the red pixels from the spline curve. At the same time, blue horizontal and vertical lines are introduced, where the highest tongue contour point is located.
+    """
+    if ignore_edges:
+        edges = dict()
+        for i in range(img.shape[1]):
+            if tuple(img[0,i]) in [(0,0,0),(255,255,255)]:
+                for ind,j in enumerate(img[:,i]):
+                    if tuple(img[0,i])!=tuple(j):
+                        img[:ind,i] = (0,0,0)
+                        edges[i] = list(range(ind))
+                        break
+        for i in range(img.shape[1]):
+            if tuple(img[-1,i]) in [(0,0,0),(255,255,255)]:
+                for ind,j in enumerate(img[::-1,i]):
+                    if tuple(img[-1,i])!=tuple(j):
+                        img[(len(img[:,i])-ind):,i] = (0,0,0)
+                        edges[i] = edges.get(i,[]) + list(range(len(img[:,i])-ind, len(img[:,i])))
+                        edges[i] = sorted(list(set(edges[i])))
+                        break
+    ymaxpos = None
+    for i in range(img.shape[0]):
+        mar = int(img.shape[1]//2.125)
+        is_red = [tuple(j) == (0,0,255) for j in img[i,mar:-mar,:]]
+        if any(is_red):
+            ymaxpos = i
+            xmaxpos = np.where(is_red)[0]
+            xmaxpos = mar + xmaxpos[len(xmaxpos)//2]
+            break
+    if ymaxpos is None:
+        raise ValueError('There is no red pixel in the picture')
+    if ignore_edges:
+        for i,j in edges.items():
+            for k in j:
+                img[k,i] = (255,255,255)
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            crgb = img[i,j,:]
+            if not (crgb==crgb[0]).all():
+                pxls = []
+                for k in range(-1,2):
+                    for l in range(-1,2):
+                        trgb = img[i+k, j+l, :]
+                        if (trgb==trgb[0]).all():
+                            pxls.append(tuple(trgb))
+                rgb = []
+                for k in range(0,3):
+                    rgb.append(np.mean([ i[k] for i in pxls ], dtype=int))
+                img[i,j,:] = tuple([np.mean(rgb,dtype=int)]*3)
+    for i in range(img.shape[0]):
+        img[i, xmaxpos, :] = (255,0,0)
+    for i in range(img.shape[1]):
+        img[ymaxpos, i, :] = (255,0,0)
+    pos_and_img = {'ypos':ymaxpos, 'xpos':xmaxpos, 'img':img}
+    return pos_and_img
+

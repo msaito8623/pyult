@@ -115,3 +115,11 @@ def find_target_file (wdir, stem, extension, no_hit_ok=True, recursive=False):
     else:
         ret = str(path[0])
     return ret
+def which_filetype (path):
+    if 'US.txt' in path:
+        ftype = 'ust'
+    else:
+        ext = {'txt':'txt', 'ult':'ult', 'TextGrid':'tgd', 'phoneswithQ':'phn', 'words':'wrd'}
+        ftype = ext[Path(path).suffix[1:]]
+    return ftype
+

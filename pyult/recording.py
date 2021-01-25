@@ -12,6 +12,11 @@ class Recording:
         for i,j in dct.items():
             setattr(self, i, j)
         return None
+    def read (self, path):
+        ftype = file.which_filetype(path)
+        tofunc = {'ult':self.read_ult, 'ust':self.read_ustxt, 'txt':self.read_txt, 'tgd':self.read_textgrid, 'phn':self.read_phones, 'wrd':self.read_words}
+        tofunc[ftype](path)
+        return None
     def read_ult (self, path):
         self.vector = file.read_ult(path)
         return None
@@ -146,11 +151,13 @@ class Recording:
     def square_imgs (self):
         self.squares = image.to_square(self.imgs)
         return None
-    def to_fan (self, general_parameters=False, magnify=1, show_progress=False ):
+    def to_fan (self, imgs=None, general_parameters=False, magnify=1, show_progress=False ):
+        if imgs is None:
+            imgs = self.imgs
         if general_parameters:
-            self.fans = image.to_fan(self.imgs, magnify=magnify, show_progress=show_progress)
+            self.fans = image.to_fan(imgs, magnify=magnify, show_progress=show_progress)
         else:
-            self.fans = image.to_fan(self.imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors, magnify=magnify, show_progress=show_progress)
+            self.fans = image.to_fan(imgs, self.Angle, self.ZeroOffset, self.PixelsPerMm, self.NumVectors, magnify=magnify, show_progress=show_progress)
         return None
     def write_video (self, audiopath, outpath='./video.avi'):
         vtemp = Path(outpath)

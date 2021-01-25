@@ -63,16 +63,19 @@ class Session:
                         print(i)
         return None
     def load_recording (self, basename_or_index):
-        ind = [ i for i,j in enumerate(self.basenames) if j==basename_or_index ]
+        if isinstance(basename_or_index, int):
+            ind = [basename_or_index]
+        else:
+            ind = [ i for i,j in enumerate(self.basenames) if j==basename_or_index ]
         assert len(ind)==1
         ind = ind[0]
         rec = Recording()
-        rec.read_ult(self.paths['ult'][ind])
-        rec.read_ustxt(self.paths['ust'][ind])
-        rec.read_txt(self.paths['txt'][ind])
-        rec.read_phones(self.paths['phn'][ind])
-        rec.read_words(self.paths['wrd'][ind])
-        rec.read_textgrid(self.paths['tgd'][ind])
+        ftypes = ['ult', 'ust', 'txt', 'tgd', 'phn', 'wrd']
+        for i in ftypes:
+            try:
+                rec.read(self.paths[i][ind])
+            except IndexError:
+                pass
         return rec
 
 
