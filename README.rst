@@ -13,6 +13,11 @@ Installation
     pip install --user pyult
 
 
+Documentation
+=============
+
+*pyult* uses ``sphinx`` to create a documentation manual. The documentation is hosted on `Read the Docs <http://pyult.readthedocs.io/en/latest/>`_.
+
 
 Authors and Contributers
 ========================
