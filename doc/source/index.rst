@@ -5,9 +5,6 @@
 
 .. automodule:: pyult
 
-Welcome to pyult's documentation!
-=================================
-
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
@@ -16,11 +13,3 @@ Welcome to pyult's documentation!
    installation
    about
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
