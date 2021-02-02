@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import pyult.general as ugen
 
 def imgs_to_df (imgs, fps=None):
     imgs = [ img_to_df(img=i, frame_id=frame) for frame,i in enumerate(imgs) ]
@@ -83,8 +82,7 @@ def integrate_splines ( df, splvals ):
     df = pd.merge(df, splvals, on=['frame','x'], how='left')
     return df
 
-@ugen.deprecated
-def textgrid_to_alignfiles ( textgridlist, label1='words', label2='segments' ):
+def textgrid_to_alignfiles ( textgridlist ):
     def _temp ( xxx ):
         xxx = np.array(xxx)
         xxx = xxx[3:]
@@ -103,6 +101,12 @@ def textgrid_to_alignfiles ( textgridlist, label1='words', label2='segments' ):
         return df
 
     lines = np.array(textgridlist)
+
+    labels = [ i.replace('name = "','') for i in lines if 'name = "' in i ]
+    labels = [ i.replace('"','').strip() for i in labels ]
+    label1 = labels[0]
+    label2 = labels[1]
+
     keys = [label1, label2, 'xmin', 'xmax', 'text']
     pos = []
     for i in keys:
@@ -139,4 +143,25 @@ def textgrid_to_alignfiles ( textgridlist, label1='words', label2='segments' ):
     interval1 = pd.concat([ __todf(i, label1) for i in interval1 ], ignore_index=True)
     interval2 = pd.concat([ __todf(i, label2) for i in interval2], ignore_index=True)
     return {label1:interval1, label2:interval2}
+
+def textgrid_to_df ( textgridlist ):
+    aln = textgrid_to_alignfiles(textgridlist)
+    assert len(aln)==2
+    keys = list(aln.keys())
+    values = list(aln.values())
+    lens = [ len(i) for i in values ]
+    short_long = lens[0] < lens[1]
+    if short_long:
+        df_short  = values[0]
+        df_long   = values[1]
+        key_short = keys[0]
+        key_long  = keys[1]
+    else:
+        df_short  = values[1]
+        df_long   = values[0]
+        key_short = keys[1]
+        key_long  = keys[0]
+    df_long[key_short] = [ df_short[key_short].loc[df_short['end']>=i].iloc[0] for i in df_long['end'] ]
+    return df_long
+
 

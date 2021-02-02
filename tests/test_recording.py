@@ -175,6 +175,15 @@ def test_textgrid_to_alignfiles (rec_obj):
     cond2 = hasattr(obj, 'words')
     assert all([cond1, cond2])
 
+def test_textgrid_to_df (rec_obj):
+    obj = rec_obj(par=True)
+    obj.textgrid_to_df()
+    cond1 = hasattr(obj, 'textgrid_df')
+    cond2 = len(obj.textgrid_df)>0
+    clms = ['end','segments','words']
+    cond3 = all([ i==j for i,j in zip(clms,obj.textgrid_df.columns) ])
+    assert all([cond1, cond2, cond3])
+
 def test_square_imgs (rec_obj):
     obj = rec_obj(par=True)
     obj.vec_to_imgs()

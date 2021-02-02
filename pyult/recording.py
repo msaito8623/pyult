@@ -143,10 +143,13 @@ class Recording:
             self.fit_spline(fitted_images=False, fitted_values=True)
         self.df = dataframe.integrate_splines(self.df, self.fitted_values)
         return None
-    def textgrid_to_alignfiles (self, label1='words', label2='segments'):
-        aligns = dataframe.textgrid_to_alignfiles(self.textgrid, label1, label2)
+    def textgrid_to_alignfiles (self):
+        aligns = dataframe.textgrid_to_alignfiles(self.textgrid)
         self.words= aligns['words']
         self.phones = aligns['segments']
+        return None
+    def textgrid_to_df (self):
+        self.textgrid_df = dataframe.textgrid_to_df(self.textgrid)
         return None
     def square_imgs (self):
         self.squares = image.to_square(self.imgs)
