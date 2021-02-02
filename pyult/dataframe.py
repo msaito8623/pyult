@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import pyult.general as ugen
 
 def imgs_to_df (imgs, fps=None):
     imgs = [ img_to_df(img=i, frame_id=frame) for frame,i in enumerate(imgs) ]
@@ -82,6 +83,7 @@ def integrate_splines ( df, splvals ):
     df = pd.merge(df, splvals, on=['frame','x'], how='left')
     return df
 
+@ugen.deprecated
 def textgrid_to_alignfiles ( textgridlist, label1='words', label2='segments' ):
     def _temp ( xxx ):
         xxx = np.array(xxx)
