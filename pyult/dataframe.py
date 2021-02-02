@@ -82,7 +82,7 @@ def integrate_splines ( df, splvals ):
     df = pd.merge(df, splvals, on=['frame','x'], how='left')
     return df
 
-def textgrid_to_alignfiles ( textgridlist ):
+def textgrid_to_alignfiles ( textgridlist, label1='words', label2='segments' ):
     def _temp ( xxx ):
         xxx = np.array(xxx)
         xxx = xxx[3:]
@@ -101,29 +101,29 @@ def textgrid_to_alignfiles ( textgridlist ):
         return df
 
     lines = np.array(textgridlist)
-    keys = ['segments', 'words', 'xmin', 'xmax', 'text']
+    keys = [label1, label2, 'xmin', 'xmax', 'text']
     pos = []
     for i in keys:
         pos = pos + [ j for j,k in enumerate(lines) if i in k ]
     pos = sorted(list(set(pos)))
     lines = lines[pos]
 
-    pos = [ i for i,j in enumerate(lines) if ('segments' in j) or ('words' in j) ]
+    pos = [ i for i,j in enumerate(lines) if (label1 in j) or (label2 in j) ]
     if len(pos)!=2 :
-        print('WARNING: Multiple lines matched "segments" and "words" in a textgrid file.')
+        raise ValueError('Multiple or no lines matched {} and {} in a textgrid file.'.format(label1, label2))
 
-    segments = lines[pos[0]:pos[1]]
-    words = lines[pos[1]:]
-    segments = [ i.strip() for i in segments ]
-    words = [ i.strip() for i in words ]
-    segments = [ i.split(' = ')[1] for i in segments ]
-    words = [ i.split(' = ')[1] for i in words ]
-    segments = _temp(segments)
-    words = _temp(words)
-    segments = [ i + ' 000 ' + j for i,j in zip(segments.xmax, segments.text) ]
-    words = [ i + ' 000 ' + j for i,j in zip(words.xmax, words.text) ]
-    segments = ['#'] + segments
-    words = ['#'] + words
+    interval1 = lines[pos[0]:pos[1]]
+    interval2 = lines[pos[1]:]
+    interval1 = [ i.strip() for i in interval1 ]
+    interval2 = [ i.strip() for i in interval2 ]
+    interval1 = [ i.split(' = ')[1] for i in interval1 ]
+    interval2 = [ i.split(' = ')[1] for i in interval2 ]
+    interval1 = _temp(interval1)
+    interval2 = _temp(interval2)
+    interval1 = [ i + ' 000 ' + j for i,j in zip(interval1.xmax, interval1.text) ]
+    interval2 = [ i + ' 000 ' + j for i,j in zip(interval2.xmax, interval2.text) ]
+    interval1 = ['#'] + interval1
+    interval2 = ['#'] + interval2
 
     def __todf (line, typ):
         line = line.split(' ')
@@ -134,7 +134,7 @@ def textgrid_to_alignfiles ( textgridlist ):
         else:
             ret = None
         return ret
-    segments = pd.concat([ __todf(i, 'segment') for i in segments ], ignore_index=True)
-    words = pd.concat([ __todf(i, 'word') for i in words], ignore_index=True)
-    return {'phones':segments, 'words':words}
+    interval1 = pd.concat([ __todf(i, label1) for i in interval1 ], ignore_index=True)
+    interval2 = pd.concat([ __todf(i, label2) for i in interval2], ignore_index=True)
+    return {label1:interval1, label2:interval2}
 
