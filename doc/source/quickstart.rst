@@ -4,7 +4,12 @@ Quickstart
 Installation
 ------------
 
-First, you need to install *pyult*. Please look at :doc:`installation` for more details for the installation of *pyult*
+First, you need to install *pyult*. *pyult* has been tested only on 64-bit Linux systems.
+
+.. code:: bash
+
+    pip install --user pyult
+
 
 
 Necessary files: Exported files by Articulate Assistant Advanced
@@ -15,6 +20,40 @@ Necessary files: Exported files by Articulate Assistant Advanced
 Exported files by AAA for each recording usually consist of the main ultrasound file with the extension *.ult*, a parameter file (which usually ends with *...US.txt*), a meta-information text file containing information such as prompts (words/phrases displayed on a screen during recording) with the extension *.txt*, and an audio file (*.wav*).
 
 Additionally, TextGrid files may be necessary, if you would like to include segment-information in the dataframes produced by *pyult*. TextGrid files can be produced by using forced-alignment programs.
+
+
+Terminology
+-----------
+
+ult file
+	Files that have the extension ".ult", e.g. recording01.ult. A ult file has a vector of brightness values for recorded ultrasound images.
+
+ustxt file
+  Files that have the ending "US.txt", e.g. recording01US.txt. A ustxt file has the information (parameters) necessary to (re)construct ultrasound images or videos out of a vector of brightness values from a ult file.
+
+txt file
+  Text files that have the extension ".txt" but not "US.txt", e.g. recording01.txt (not recording01US.txt). A txt file has the information about the participant, the prompt, and the date of the recording.
+
+wav file
+  Audio files that have the extension ".wav", e.g. recording01_Track0.wav.
+
+recording
+  In this package (and thus this documentation), 'recording' refers to a set of the relevant files sharing the same basename. For example, the recording "foobar01" refers to a set of "foobar01.ult", "foobar01US.txt", "foobar01.txt", "foobar01.wav", and so on. Its basename is "foobar01" in this case.
+
+session
+  Usually, more than one item or participant are recorded. They are exported separately by AAA. In this package, 'session' refers to the directory that contains multiple recordings. For example, one session may contain "foobar01.ult", "foobar01US.txt", "foobar01.wav", ..., "foobar02.ult", "foobar02US.txt", "foobar02.wav", ... and so on.
+
+::
+
+    session_01
+    ├── foobar01.txt
+    ├── foobar01US.txt
+    ├── foobar01.ult
+    ├── foobar01_Track0.wav
+    ├── foobar02.txt
+    ├── foobar02US.txt
+    ├── foobar02.ult
+    └── foobar02_Track0.wav
 
 
 Generate dataframes and pictures automatically from ultrasound files
