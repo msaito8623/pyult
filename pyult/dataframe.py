@@ -106,20 +106,28 @@ def textgrid_to_alignfiles ( textgridlist ):
     labels = [ i.replace('"','').strip() for i in labels ]
     label1 = labels[0]
     label2 = labels[1]
+    if len(labels)>2:
+        label3 = labels[2]
+        keys = [label1, label2, label3, 'xmin', 'xmax', 'text']
+    else:
+        keys = [label1, label2, 'xmin', 'xmax', 'text']
 
-    keys = [label1, label2, 'xmin', 'xmax', 'text']
     pos = []
     for i in keys:
         pos = pos + [ j for j,k in enumerate(lines) if i in k ]
     pos = sorted(list(set(pos)))
     lines = lines[pos]
 
-    pos = [ i for i,j in enumerate(lines) if (label1 in j) or (label2 in j) ]
-    if len(pos)!=2 :
-        raise ValueError('Multiple or no lines matched {} and {} in a textgrid file.'.format(label1, label2))
+    if len(labels)>2:
+        pos = [ i for i,j in enumerate(lines) if (label1 in j) or (label2 in j) or (label3 in j)]
+    else:
+        pos = [ i for i,j in enumerate(lines) if (label1 in j) or (label2 in j) ]
 
     interval1 = lines[pos[0]:pos[1]]
-    interval2 = lines[pos[1]:]
+    if len(pos)>2:
+        interval2 = lines[pos[1]:pos[2]]
+    else:
+        interval2 = lines[pos[1]:]
     interval1 = [ i.strip() for i in interval1 ]
     interval2 = [ i.strip() for i in interval2 ]
     interval1 = [ i.split(' = ')[1] for i in interval1 ]
@@ -161,7 +169,29 @@ def textgrid_to_df ( textgridlist ):
         df_long   = values[0]
         key_short = keys[1]
         key_long  = keys[0]
-    df_long[key_short] = [ df_short[key_short].loc[df_short['end']>=i].iloc[0] for i in df_long['end'] ]
-    return df_long
+    df_short['ID'+key_short] = [ '{}-{}'.format(i,j) for i,j in enumerate(df_short[key_short]) ]
+    df_long['ID'+key_long] = [ '{}-{}'.format(i,j) for i,j in enumerate(df_long[key_long]) ]
+    df_long['start'] = df_long.end.shift(fill_value=0)
+    df_short['start'] = df_short.end.shift(fill_value=0)
+    df_short = df_short.reset_index(drop=True)
+    for i in range(len(df_short)):
+        cstart = df_short.loc[i,'start']
+        cend   = df_short.loc[i,'end']
+        cid    = df_short.loc[i,'ID'+key_short]
+        if cstart==0:
+            pos1 = df_long.end>=cstart
+        else:
+            pos1 = df_long.end>cstart
+        pos2 = df_long.end<=cend
+        pos = pos1 & pos2
+        df_long.loc[pos, 'ID'+key_short] = cid
+    df_long  = df_long.rename(columns={'end':'end_{}'.format(key_long)})
+    df_short = df_short.rename(columns={'end':'end_{}'.format(key_short)})
+    df_long  = df_long.rename(columns={'start':'start_{}'.format(key_long)})
+    df_short = df_short.rename(columns={'start':'start_{}'.format(key_short)})
+    df_merged = pd.merge(df_long, df_short, on='ID'+key_short, how='left')
+    kept_cols = ['ID'+key_long, key_long, 'start_'+key_long, 'end_'+key_long, 'ID'+key_short, key_short, 'start_'+key_short, 'end_'+key_short]
+    df_merged = df_merged.loc[:,kept_cols]
+    return df_merged
 
 

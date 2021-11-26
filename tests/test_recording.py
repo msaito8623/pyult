@@ -180,7 +180,7 @@ def test_textgrid_to_df (rec_obj):
     obj.textgrid_to_df()
     cond1 = hasattr(obj, 'textgrid_df')
     cond2 = len(obj.textgrid_df)>0
-    clms = ['end','segments','words']
+    clms = ['IDsegments', 'segments', 'start_segments', 'end_segments', 'IDwords', 'words', 'start_words', 'end_words']
     cond3 = all([ i==j for i,j in zip(clms,obj.textgrid_df.columns) ])
     assert all([cond1, cond2, cond3])
 
