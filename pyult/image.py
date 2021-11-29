@@ -322,36 +322,48 @@ def deriv_discrete ( vect ):
 
 ### Functions for fitting spline curves (UNTIL HERE) ###
 
-def to_square (imgs):
+def to_square (imgs, size=None):
     if len(imgs.shape)==4:
-        shapes = [ i.shape for i in imgs ]
-        ymx = max([ i[0] for i in shapes ])
-        xmx = max([ i[1] for i in shapes ])
-        bigger = ymx if ymx >= xmx else xmx
-        squsize = (bigger, bigger)
-        imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
-        imgs = np.array(imgs)
-    elif len(imgs.shape)==3:
-        if imgs.shape[-1]==3:# single RGB image
-            ymx = imgs.shape[0]
-            xmx = imgs.shape[1]
-            bigger = ymx if ymx >= xmx else xmx
-            squsize = (bigger, bigger)
-            imgs = cv2.resize(src=imgs, dsize=squsize)
-            imgs = np.array(imgs)
-        else:# multiple grayscale images
+        if size is None:
             shapes = [ i.shape for i in imgs ]
             ymx = max([ i[0] for i in shapes ])
             xmx = max([ i[1] for i in shapes ])
             bigger = ymx if ymx >= xmx else xmx
             squsize = (bigger, bigger)
+        else:
+            squsize = (size, size)
+        imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
+        imgs = np.array(imgs)
+    elif len(imgs.shape)==3:
+        if imgs.shape[-1]==3:# single RGB image
+            if size is None:
+                ymx = imgs.shape[0]
+                xmx = imgs.shape[1]
+                bigger = ymx if ymx >= xmx else xmx
+                squsize = (bigger, bigger)
+            else:
+                squsize = (size, size)
+            imgs = cv2.resize(src=imgs, dsize=squsize)
+            imgs = np.array(imgs)
+        else:# multiple grayscale images
+            if size is None:
+                shapes = [ i.shape for i in imgs ]
+                ymx = max([ i[0] for i in shapes ])
+                xmx = max([ i[1] for i in shapes ])
+                bigger = ymx if ymx >= xmx else xmx
+                squsize = (bigger, bigger)
+            else:
+                squsize = (size, size)
             imgs = [ cv2.resize(src=i, dsize=squsize) for i in imgs ]
             imgs = np.array(imgs)
     else:# single grayscale image
-        ymx = imgs.shape[0]
-        xmx = imgs.shape[1]
-        bigger = ymx if ymx >= xmx else xmx
-        squsize = (bigger, bigger)
+        if size is None:
+            ymx = imgs.shape[0]
+            xmx = imgs.shape[1]
+            bigger = ymx if ymx >= xmx else xmx
+            squsize = (bigger, bigger)
+        else:
+            squsize = (size, size)
         imgs = cv2.resize(src=imgs, dsize=squsize)
         imgs = np.array(imgs)
     return imgs
@@ -521,19 +533,23 @@ def average_imgs (imgs):
         mean_img = imgs
     return mean_img
 
+def time_to_frame (time, fps, len_frames):
+    if fps is None:
+        raise ValueError("Provide fps when filtering by time.")
+    else:
+        frames_in_seconds = np.arange(1,len_frames+1)/fps
+        try:
+            frame = np.array([abs(frames_in_seconds-i).argmin() for i in time])
+        except TypeError:
+            frame = np.array(abs(frames_in_seconds-time).argmin())
+    return frame
+
 def filter_imgs (imgs, frame=None, time=None, fps=None):
     flg = sum([ i is None for i in [frame, time] ])
     if flg==2 or flg==0:
         raise ValueError('Only one of frame or time should be provided.')
     if not time is None:
-        if fps is None:
-            raise ValueError("Provide fps when filtering by time.")
-        else:
-            frames_in_seconds = np.arange(1,len(imgs)+1)/fps
-            try:
-                frame = np.array([abs(frames_in_seconds-i).argmin() for i in time])
-            except TypeError:
-                frame = np.array(abs(frames_in_seconds-time).argmin())
+        frame = time_to_frame(time, fps, len(imgs))
     imgs = imgs[frame]
     return imgs
 

@@ -29,7 +29,7 @@ def integrate_segments ( df, dfphones, dfwords, rmvnoise=True ):
     for i in dfphones.index:
         cst = dfphones.loc[i,'start']
         ced = dfphones.loc[i,'end']
-        csg = dfphones.loc[i,'segment']
+        csg = dfphones.loc[i,'segments']
         cwd = dfphones.loc[i,'word']
         df.loc[ (df.time>cst) & (df.time<ced), 'segment'] = csg
         df.loc[ (df.time>cst) & (df.time<ced), 'word'] = cwd
@@ -41,7 +41,7 @@ def alignment_df (dfphones, dfwords):
     dfphones['start'] = dfphones['end'].shift(fill_value=0)
     dfwords['start'] = dfwords['end'].shift(fill_value=0)
     def word_now (value, wrds):
-        res = [ k for i,j,k in zip(wrds.start, wrds.end, wrds.word) if (value>i) and (value<=j) ]
+        res = [ k for i,j,k in zip(wrds.start, wrds.end, wrds.words) if (value>i) and (value<=j) ]
         if len(res)!=1:
             raise ValueError('The provided value corresponds to more than one word.')
         return res[0]

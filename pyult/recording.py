@@ -1,4 +1,6 @@
+import copy
 import os
+import pandas as pd
 import pyult.file as file
 import pyult.image as image 
 import pyult.dataframe as dataframe
@@ -85,6 +87,32 @@ class Recording:
         else:
             rtn = filtered_imgs
         return rtn
+    def filter_by_segments (self, segments, duplicates='last', nohit='untouched'):
+        if not hasattr(self, 'textgrid_df'):
+            self.textgrid_to_df()
+        tdf = self.textgrid_df.copy()
+        if duplicates=='first':
+            pos = 0
+        elif duplicates=='last':
+            pos = -1
+        else:
+            raise ValueError('"duplicates" must be "first" or "last".')
+        segpos = tdf.segments.isin(pd.Series(segments))
+        if any(segpos):
+            tim = tdf.loc[segpos,['start_segments','end_segments']].reset_index(drop=True).iloc[pos].to_list()
+            frames = image.time_to_frame(time=tim, fps=self.FramesPerSec, len_frames = len(self.imgs))
+            frames[1] = frames[1] + 1
+            frames = range(*frames)
+            self.filter_imgs(frame=frames)
+            self.segment = tdf.segments.loc[segpos].iloc[-1]
+        else:
+            if nohit=='untouched':
+                pass
+            elif nohit=='none':
+                self.imgs = None
+            else:
+                raise ValueError('"nohit" must be "untouched" or "none".')
+        return None
     def crop (self, crop_points):
         self.imgs = image.crop(self.imgs, crop_points)
         return None
@@ -109,12 +137,20 @@ class Recording:
         else:
             pass
         return None
-    def imgs_to_df (self, frame_id=''):
-        if len(self.imgs.shape)==3:
-            self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
-        elif len(self.imgs.shape)==2:
-            self.df = dataframe.img_to_df(self.imgs, frame_id, self.FramesPerSec)
-        return None
+    def imgs_to_df (self, frame_id='', inplace=True):
+        if inplace:
+            if len(self.imgs.shape)==3:
+                self.df = dataframe.imgs_to_df(self.imgs, self.FramesPerSec)
+            elif len(self.imgs.shape)==2:
+                self.df = dataframe.img_to_df(self.imgs, frame_id, self.FramesPerSec)
+            obj = None
+        else:
+            obj = copy.deepcopy(self)
+            if len(obj.imgs.shape)==3:
+                obj.df = dataframe.imgs_to_df(obj.imgs, obj.FramesPerSec)
+            elif len(obj.imgs.shape)==2:
+                obj.df = dataframe.img_to_df(obj.imgs, frame_id, obj.FramesPerSec)
+        return obj
     def integrate_segments (self):
         try:
             c1 = not self.phones is None
@@ -151,9 +187,12 @@ class Recording:
     def textgrid_to_df (self):
         self.textgrid_df = dataframe.textgrid_to_df(self.textgrid)
         return None
-    def square_imgs (self):
-        self.squares = image.to_square(self.imgs)
-        return None
+    def square_imgs (self, size=None, inplace=True, attr='squares'):
+        squ = image.to_square(self.imgs, size)
+        if inplace:
+            setattr(self, attr, squ)
+            squ = None
+        return squ
     def to_fan (self, imgs=None, general_parameters=False, magnify=1, show_progress=False ):
         if imgs is None:
             imgs = self.imgs

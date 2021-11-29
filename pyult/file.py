@@ -23,11 +23,11 @@ def read_txt (path):
     content = { i:j for i,j in zip(kys, content) }
     return content
 def read_phones (path):
-    colns = ['end', 'segment']
+    colns = ['end', 'segments']
     dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
     return dat
 def read_words (path):
-    colns = ['end','word']
+    colns = ['end','words']
     dat = pd.read_csv(path, sep=' ', header=None, skiprows=[0], usecols=[0,2], names=colns)
     return dat
 def read_textgrid (path):

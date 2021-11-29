@@ -76,6 +76,7 @@ class Session:
                 rec.read(self.paths[i][ind])
             except IndexError:
                 pass
+        rec.ID = basename_or_index
         return rec
 
 

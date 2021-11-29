@@ -184,13 +184,34 @@ def test_textgrid_to_df (rec_obj):
     cond3 = all([ i==j for i,j in zip(clms,obj.textgrid_df.columns) ])
     assert all([cond1, cond2, cond3])
 
-def test_square_imgs (rec_obj):
+params = [(None, True,  'squares'),
+          (None, True,  'hoge'),
+          (None, False, 'squares'),
+          (None, False, 'hoge'),
+          (  10, True,  'squares'),
+          (  10, True,  'hoge'),
+          (  10, False, 'squares'),
+          (  10, False, 'hoge')]
+@pytest.mark.parametrize('size,inplace,attr', params)
+def test_square_imgs (rec_obj,size,inplace,attr):
     obj = rec_obj(par=True)
     obj.vec_to_imgs()
-    obj.square_imgs()
-    cond1 = hasattr(obj, 'squares')
-    cond2 = all([ len(set(i.shape))==1 for i in obj.squares ])
-    assert all([cond1, cond2])
+    ret = obj.square_imgs(size, inplace, attr)
+    if inplace:
+        ret_type = type(None)
+    else:
+        ret_type = np.ndarray
+    if ret is None:
+        img = getattr(obj, attr)
+    else:
+        img = ret
+    if size is None:
+        img_shape = (333,842,842)
+    else:
+        img_shape = (333, 10, 10)
+    assert type(ret) is ret_type
+    assert hasattr(obj, attr) is inplace
+    assert img.shape==img_shape
 
 def test_to_fan (rec_obj):
     obj = rec_obj(par=True)
@@ -246,6 +267,25 @@ def test_filter_imgs (rec_obj):
     tst1 = np.equal(aaa,bbb).all()
     tst2 = np.equal(aaa,obj.imgs).all()
     assert tst1 and tst2
+
+params = [(5,    ('f','s'), 'first', 'untouched'),
+          (5,    ('f','s'), 'first', 'none'),
+          (14,   ('f','s'), 'last',  'untouched'),
+          (14,   ('f','s'), 'last',  'none'),
+          (333,  ('x','x'), 'first', 'untouched'),
+          (None, ('x','x'), 'first', 'none'),
+          (333,  ('x','x'), 'last',  'untouched'),
+          (None, ('x','x'), 'last',  'none')]
+@pytest.mark.parametrize('frmlen,segs,dup,nhit', params)
+def test_filter_by_segments (rec_obj, frmlen, segs, dup, nhit):
+    obj = rec_obj(par=True)
+    obj.vec_to_imgs()
+    obj.filter_by_segments(segs, dup, nhit)
+    try:
+        ok = obj.imgs.shape[0]==frmlen
+    except AttributeError:
+        ok = obj.imgs is None
+    assert ok
 
 def test_ymax (rec_obj):
     obj = rec_obj(par=False)
