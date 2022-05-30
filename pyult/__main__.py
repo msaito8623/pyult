@@ -70,7 +70,10 @@ def execute_task (par_args):
     if spl:
         obj.fit_spline(fitted_images=True,fitted_values=True)
     if task=='df':
-        obj.imgs_to_df(frame_id=c_picked_frame)
+        if hasattr(obj, 'c_picked_frame'):
+            obj.imgs_to_df(frame_id=c_picked_frame)
+        else:
+            obj.imgs_to_df()
         obj.integrate_segments()
         if spl:
             obj.integrate_splines()
