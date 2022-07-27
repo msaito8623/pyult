@@ -370,29 +370,30 @@ def to_square (imgs, size=None):
 
 
 ### Fanshape (FROM HERE) ###
-def to_fan (imgs, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800, show_progress=False ):
+def to_fan (imgs, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800, show_progress=False, verbose=True ):
     if len(imgs.shape)==4:# multiple RGB images
         if show_progress:
-            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
+            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose) for i in tqdm(imgs, desc='Fanshape')]
         else:
-            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+            imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose) for i in imgs]
     elif len(imgs.shape)==3:
         if imgs.shape[-1]==3:# single RGB image
-            imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve)
+            imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose)
         else:# multiple grayscale images
             if show_progress:
-                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in tqdm(imgs, desc='Fanshape')]
+                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose) for i in tqdm(imgs, desc='Fanshape')]
             else:
-                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve) for i in imgs]
+                imgs = [ to_fan_2d(i, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose) for i in imgs]
     else:# single grayscale image
-        imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve)
+        imgs = to_fan_2d(imgs, angle, zero_offset, pix_per_mm, num_vectors, magnify, reserve, verbose)
     return np.array(imgs)
 
-def to_fan_2d (img, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800):
+def to_fan_2d (img, angle=None, zero_offset=None, pix_per_mm=None, num_vectors=None, magnify=1, reserve=1800, verbose=True):
 
     use_genpar = any([ i is None for i in [angle, zero_offset, pix_per_mm, num_vectors] ])
     if use_genpar:
-        print('WARNING: Not all the necessary information are provided. General parameters are used instead.')
+        if verbose:
+            print('WARNING: Not all the necessary information are provided. General parameters are used instead.')
         img = cv2.resize(img, (500,500))
         angle = 0.0031
         zero_offset = 150
